@@ -8,8 +8,14 @@
 import AVFoundation
 import SwiftUI
 
+/// The content shown inside the app's immersive playback scene.
 struct ImmersivePlayerView: View {
+    // MARK: Environment
+
+    /// Shared app state that provides the active immersive player and layout metadata.
     @Environment(AppModel.self) private var appModel
+
+    // MARK: Body
 
     var body: some View {
         ZStack {

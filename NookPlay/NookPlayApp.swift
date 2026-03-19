@@ -9,15 +9,23 @@ import SwiftUI
 
 @main
 struct NookPlayApp: App {
+    // MARK: State
+
+    /// Shared app state injected into both the main window and immersive scene.
     @State private var appModel = AppModel()
+
+    /// The currently selected immersion style for the app's immersive playback scene.
     @State private var immersionStyle: ImmersionStyle = .progressive
+
+    // MARK: Scenes
 
     var body: some Scene {
         WindowGroup {
             ContentView()
                 .environment(appModel)
         }
-        .windowResizability(.contentSize)
+        .defaultSize(width: 960, height: 720)
+        .windowResizability(.contentMinSize)
 
         ImmersiveSpace(id: "player-immersive-space") {
             ImmersivePlayerView()

@@ -8,16 +8,34 @@
 import AVKit
 import SwiftUI
 
+/// The fullscreen playback screen for a selected media item.
+///
+/// This view intentionally delegates actual transport controls to the system
+/// player UI and only manages lifecycle, error handling, and immersive entry.
 struct PlayerView: View {
+    // MARK: Environment
+
+    /// Shared app state used for immersive playback handoff.
     @Environment(AppModel.self) private var appModel
+    /// System action used to open the app's immersive playback scene.
     @Environment(\.openImmersiveSpace) private var openImmersiveSpace
+    /// System action used to dismiss the app's immersive playback scene.
     @Environment(\.dismissImmersiveSpace) private var dismissImmersiveSpace
+    /// The scene phase for the current player presentation.
     @Environment(\.scenePhase) private var scenePhase
+    /// The playback state and lifecycle coordinator for this screen.
     @State private var viewModel: PlayerViewModel
 
+    // MARK: Initialization
+
+    /// Creates a playback screen for a specific media source.
+    ///
+    /// - Parameter mediaSource: The media item that should be played.
     init(mediaSource: AnyPlayableMediaSource) {
         _viewModel = State(initialValue: PlayerViewModel(mediaSource: mediaSource))
     }
+
+    // MARK: Body
 
     var body: some View {
         ZStack {
