@@ -5,9 +5,9 @@
 //  Created by Yuunan kin on 2026/03/19.
 //
 
-import SwiftUI
 import RealityKit
 import RealityKitContent
+import SwiftUI
 
 struct ContentView: View {
     var body: some View {
