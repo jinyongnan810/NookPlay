@@ -28,7 +28,6 @@ struct ContentView: View {
                     destinationView(for: route)
                 }
         }
-        .frame(minWidth: 720, minHeight: 520)
     }
 
     // MARK: Navigation

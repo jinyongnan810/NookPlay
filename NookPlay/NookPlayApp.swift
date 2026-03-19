@@ -24,8 +24,10 @@ struct NookPlayApp: App {
             ContentView()
                 .environment(appModel)
         }
-        .defaultSize(width: 960, height: 720)
-        .windowResizability(.contentMinSize)
+        // TODO: Revisit minimum window sizing on visionOS. The current runtime
+        // doesn't appear to honor the attempted SwiftUI and UIKit minimum-size
+        // constraints for this regular window, so the home layout should remain
+        // resilient when the window is manually shrunk.
 
         ImmersiveSpace(id: "player-immersive-space") {
             ImmersivePlayerView()
