@@ -6,6 +6,7 @@
 //
 
 import AVFoundation
+import CoreGraphics
 import Foundation
 import Observation
 import SwiftUI
@@ -17,6 +18,7 @@ final class PlayerViewModel {
     private(set) var duration: Double = 0
     private(set) var isPlaying = false
     private(set) var errorMessage: String?
+    private(set) var videoAspectRatio: CGFloat = 16 / 9
 
     let player: AVPlayer
     let mediaSource: AnyPlayableMediaSource
@@ -28,6 +30,8 @@ final class PlayerViewModel {
     @ObservationIgnored
     private var statusObservation: NSKeyValueObservation?
     @ObservationIgnored
+    private var presentationSizeObservation: NSKeyValueObservation?
+    @ObservationIgnored
     private var endObserver: NSObjectProtocol?
     private var hasAppliedInitialResume = false
 
@@ -37,7 +41,7 @@ final class PlayerViewModel {
     ) {
         self.mediaSource = mediaSource
         self.progressStore = progressStore
-        self.player = AVPlayer(url: mediaSource.streamURL)
+        player = AVPlayer(url: mediaSource.streamURL)
     }
 
     deinit {
@@ -77,6 +81,9 @@ final class PlayerViewModel {
     }
 
     func handleDisappear() {
+        player.pause()
+        isPlaying = false
+
         Task {
             await saveProgress()
         }
@@ -102,12 +109,24 @@ final class PlayerViewModel {
                 switch item.status {
                 case .readyToPlay:
                     await self.updateDuration(using: item)
+                    self.updateAspectRatio(using: item.presentationSize)
                     await self.restoreResumePositionIfNeeded()
                 case .failed:
                     self.errorMessage = item.error?.localizedDescription ?? "This video could not be played."
                 default:
                     break
                 }
+            }
+        }
+
+        presentationSizeObservation = player.currentItem?.observe(\.presentationSize, options: [.initial, .new]) { [weak self] item, _ in
+            guard let model = self else {
+                return
+            }
+
+            let presentationSize = item.presentationSize
+            Task { @MainActor [model, presentationSize] in
+                model.updateAspectRatio(using: presentationSize)
             }
         }
 
@@ -145,13 +164,28 @@ final class PlayerViewModel {
         }
     }
 
+    var preferredWindowSize: CGSize {
+        let baseHeight: CGFloat = 720
+        let clampedAspectRatio = max(videoAspectRatio, 0.5)
+        let width = max(640, min(1600, baseHeight * clampedAspectRatio))
+        return CGSize(width: width, height: baseHeight)
+    }
+
     private func updateDuration(using item: AVPlayerItem) async {
         do {
             let loadedDuration = try await item.asset.load(.duration)
-            self.duration = loadedDuration.seconds.isFinite ? loadedDuration.seconds : 0
+            duration = loadedDuration.seconds.isFinite ? loadedDuration.seconds : 0
         } catch {
-            self.duration = 0
+            duration = 0
         }
+    }
+
+    private func updateAspectRatio(using presentationSize: CGSize) {
+        guard presentationSize.width > 0, presentationSize.height > 0 else {
+            return
+        }
+
+        videoAspectRatio = presentationSize.width / presentationSize.height
     }
 
     private func restoreResumePositionIfNeeded() async {

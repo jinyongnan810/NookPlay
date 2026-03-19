@@ -86,13 +86,14 @@ Scope:
 - Restrict initial selection to movie types, with `.mp4` as the tested target
 - Convert chosen file into `LocalPlayableMedia`
 - Start playback in `PlayerView`
-- Derive stable item identity from bookmark or normalized file URL
+- Derive stable item identity from the imported file URL for the current session
 - Save and restore resume position
 
 Notes:
 
 - Support security-scoped resource access immediately.
 - Handle iCloud-backed files conservatively: loading state, playback failure state, readable errors.
+- On visionOS, treat persistent security-scoped bookmark reopening as follow-up work until the platform-specific persistence strategy is confirmed.
 
 Exit criteria:
 
@@ -115,6 +116,7 @@ Notes:
 
 - Only add items after successful playback start.
 - If bookmark restore fails, show a recoverable error rather than silently dropping the item.
+- If visionOS local-file reopening remains session-only, defer reopening local recent items across launches and treat the Recent section as display-only or source-limited until persistence is solved.
 
 Exit criteria:
 
@@ -234,3 +236,4 @@ UI/manual validation milestones:
 - Do not introduce SwiftData yet unless you want schema-driven persistence soon.
 - Do not split into multiple windows early; one window with route-based navigation is enough for MVP.
 - Do not start with DLNA. It will slow down the whole project if playback fundamentals are not already solid.
+- On visionOS, do not assume macOS-style security-scoped bookmark persistence is available. Build the local import flow for the active session first, then revisit persistent reopening as a separate task.

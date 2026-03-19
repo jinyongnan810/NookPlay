@@ -9,6 +9,9 @@ import AVKit
 import SwiftUI
 
 struct PlayerView: View {
+    @Environment(AppModel.self) private var appModel
+    @Environment(\.openImmersiveSpace) private var openImmersiveSpace
+    @Environment(\.dismissImmersiveSpace) private var dismissImmersiveSpace
     @Environment(\.scenePhase) private var scenePhase
     @State private var viewModel: PlayerViewModel
 
@@ -17,34 +20,51 @@ struct PlayerView: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 20) {
-            VideoPlayer(player: viewModel.player)
-                .frame(minHeight: 360)
-                .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
+        ZStack {
+            Color.black
+                .ignoresSafeArea()
 
-            VStack(alignment: .leading, spacing: 12) {
-                Text(viewModel.mediaSource.title)
-                    .font(.title2)
-                    .fontWeight(.semibold)
-
-                if let subtitle = viewModel.mediaSource.subtitle {
-                    Text(subtitle)
-                        .foregroundStyle(.secondary)
-                }
-
-                if let errorMessage = viewModel.errorMessage {
+            if let errorMessage = viewModel.errorMessage {
+                ContentUnavailableView {
+                    Label("Playback Error", systemImage: "exclamationmark.triangle.fill")
+                } description: {
                     Text(errorMessage)
-                        .foregroundStyle(.red)
                 }
+                .foregroundStyle(.white)
+            } else {
+                SystemVideoPlayer(player: viewModel.player, videoGravity: .resizeAspect)
+                    .ignoresSafeArea()
             }
         }
-        .padding(32)
-        .navigationTitle("Player")
+        .immersiveEnvironmentPicker {
+            Button("Immersive Theater", systemImage: "vision.pro") {
+                Task {
+                    appModel.beginImmersivePlayback(
+                        player: viewModel.player,
+                        title: viewModel.mediaSource.title,
+                        aspectRatio: viewModel.videoAspectRatio
+                    )
+                    _ = await openImmersiveSpace(id: "player-immersive-space")
+                }
+            }
+
+            Button("Exit Immersive", systemImage: "xmark.circle") {
+                Task {
+                    await dismissImmersiveSpace()
+                    appModel.endImmersivePlayback()
+                }
+            }
+            .disabled(appModel.immersivePlayer == nil)
+        }
         .task {
             viewModel.prepare()
         }
         .onDisappear {
             viewModel.handleDisappear()
+            Task {
+                await dismissImmersiveSpace()
+                appModel.endImmersivePlayback()
+            }
         }
         .onChange(of: scenePhase) { _, newPhase in
             viewModel.handleScenePhaseChange(newPhase)

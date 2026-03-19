@@ -7,7 +7,7 @@
 
 import Foundation
 
-protocol PlayableMediaSource: Sendable {
+protocol PlayableMediaSource {
     var playbackID: PlaybackItemID { get }
     var title: String { get }
     var subtitle: String? { get }
@@ -19,4 +19,5 @@ struct AnyPlayableMediaSource: PlayableMediaSource {
     let title: String
     let subtitle: String?
     let streamURL: URL
+    let accessSession: SecurityScopedAccess?
 }

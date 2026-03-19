@@ -25,7 +25,7 @@ struct ContentView: View {
     private func destinationView(for route: AppRoute) -> some View {
         switch route {
         case .localVideo:
-            PlayerView(mediaSource: DemoMediaSource.bigBuckBunny)
+            LocalVideoPickerView()
         case .webVideo, .mediaServer:
             RoutePlaceholderView(route: route)
         }
