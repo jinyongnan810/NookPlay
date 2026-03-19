@@ -43,7 +43,9 @@ struct ContentView: View {
             // Local playback is the first implemented vertical slice, so it
             // gets a real feature flow while the others remain placeholders.
             LocalVideoPickerView()
-        case .webVideo, .mediaServer:
+        case .webVideo:
+            WebEntryView()
+        case .mediaServer:
             RoutePlaceholderView(route: route)
         }
     }

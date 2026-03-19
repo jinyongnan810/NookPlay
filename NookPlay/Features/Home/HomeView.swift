@@ -31,7 +31,7 @@ struct HomeView: View {
                     // model: choose where the video comes from first, then browse.
                     SourceCard(
                         title: "Local Video",
-                        subtitle: "Open an MP4 from Files or iCloud.",
+                        subtitle: "Open a supported video from Files, iCloud, or Photos.",
                         systemImage: "internaldrive.fill"
                     ) {
                         openRoute(.localVideo)
