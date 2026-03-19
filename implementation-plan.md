@@ -1,239 +1,153 @@
-# NookPlay Concrete Implementation Plan
+# NookPlay Implementation Plan
 
-Given the current repo is still the default visionOS template, the fastest correct path is to build the app in thin vertical slices, with the player foundation first and DLNA last.
+This file reflects the repo's current state after the latest implementation session. It is intended to let a new agent continue work quickly without re-auditing the whole project.
 
-1. Establish app structure and routing.
-2. Build the reusable native player and resume persistence.
-3. Add the local-file flow end to end.
-4. Add the web flow with embedded browsing.
-5. Add DLNA discovery and browsing after the app already plays local and remote URLs reliably.
+## Current Status
 
-## Phase 0: Restructure the Template
+### Completed
 
-Create a minimal folder layout inside `NookPlay/NookPlay`:
+1. App shell and routing
 
-- `App`
-- `Features/Home`
-- `Features/Player`
-- `Features/LocalVideo`
-- `Features/WebVideo`
-- `Features/DLNA`
-- `Core/Models`
-- `Core/Persistence`
-- `Core/Playback`
-- `Core/Networking`
+- `ContentView.swift` hosts the root `NavigationStack`.
+- `AppRoute.swift` defines the current top-level routes.
+- `AppModel.swift` owns shared navigation and immersive playback state.
+- `HomeView.swift` is the current landing screen with source cards for:
+  - Local Video
+  - Web Video
+  - Media Server
 
-Initial files to add:
+2. Shared playback foundation
 
-- `App/NookPlayApp.swift` update to own shared app state
-- `App/AppRoute.swift`
-- `App/AppModel.swift`
-- `Features/Home/HomeView.swift`
-- `Core/Models/PlaybackSourceType.swift`
-- `Core/Models/PlaybackItemID.swift`
-- `Core/Models/RecentItem.swift`
-- `Core/Models/ResumeEntry.swift`
+- `PlayableMediaSource.swift` defines the shared source abstraction.
+- `PlaybackItemID.swift`, `PlaybackSourceType.swift`, and `ResumeEntry.swift` define playback identity and persistence models.
+- `PlaybackProgressStore.swift` saves resume progress in app storage.
+- `PlayerViewModel.swift` prepares playback, restores progress, and saves resume state.
 
-Goal for this phase:
+3. Local Video MVP
 
-- Replace the template `ContentView` with a real home screen.
-- Show three source cards: Local Video, Web Video, Media Server.
-- Keep navigation simple with `NavigationStack` in one `WindowGroup`.
+- `LocalVideoPickerView.swift` uses `fileImporter`.
+- `LocalVideoAccessManager.swift` manages session-scoped local file access.
+- `LocalPlayableMedia.swift` adapts imported files to the shared playback model.
+- Imported local video is presented with `fullScreenCover`.
 
-## Phase 1: Player Foundation
+4. Native fullscreen playback experience
 
-Build the player before source integrations.
+- `PlayerView.swift` uses the system player UI rather than custom transport controls.
+- `SystemVideoPlayer.swift` wraps `AVPlayerViewController`.
+- Playback is full-bleed and relies on native controls.
 
-Files:
+5. Immersive playback
 
-- `Features/Player/PlayerView.swift`
-- `Features/Player/PlayerViewModel.swift`
-- `Core/Playback/PlayableMediaSource.swift`
-- `Core/Playback/PlaybackCoordinator.swift`
-- `Core/Persistence/PlaybackProgressStore.swift`
+- `ImmersivePlayerView.swift` exists and is connected through `ImmersiveSpace`.
+- `PlayerView.swift` contributes immersive actions through the environment picker.
+- `AppModel.swift` shares the same `AVPlayer` between the windowed and immersive experiences.
 
-Scope:
+6. Codebase readability improvements
 
-- Wrap `AVPlayer`
-- Support play/pause/seek
-- Show title, progress, duration
-- Restore resume position on open
-- Save progress periodically and on disappear/background
-- Accept any `PlayableMediaSource` with stable `PlaybackItemID`
+- Current app files have detailed documentation comments.
+- Larger files use `// MARK:` section separation.
 
-Implementation details:
+### Deferred / Known Limits
 
-- Use a protocol-based source model so local and DLNA both feed the same player.
-- Start with a lightweight JSON-backed store in Application Support.
-- Only move to SwiftData if the persistence needs actually grow.
+1. Persistent local-file reopening across launches
 
-Exit criteria:
+- The current local-file flow is session-first.
+- visionOS persistent bookmark / reopen behavior has not been finalized.
+- Do not assume macOS-like bookmark persistence is correct here without verification.
 
-- A hardcoded local or remote `.mp4` can open and resume correctly.
-- Build succeeds cleanly.
+2. Recent items reopening for local files
 
-## Phase 2: Local Video MVP
+- A Recent section exists visually on the home screen, but recent-item persistence has not been implemented yet.
+- Reopening local recents across launches should stay deferred until persistent local-file access is solved.
 
-Files:
+3. Minimum window size enforcement
 
-- `Features/LocalVideo/LocalVideoPickerView.swift`
-- `Features/LocalVideo/LocalPlayableMedia.swift`
-- `Features/LocalVideo/LocalVideoAccessManager.swift`
+- Multiple approaches were attempted and then reverted:
+  - SwiftUI content sizing
+  - scene-level window sizing
+  - UIKit visionOS geometry requests
+- A TODO remains in `NookPlayApp.swift`.
+- For now, the layout should simply remain resilient in small windows.
 
-Scope:
+4. Web Video
 
-- Use `fileImporter`
-- Restrict initial selection to movie types, with `.mp4` as the tested target
-- Convert chosen file into `LocalPlayableMedia`
-- Start playback in `PlayerView`
-- Derive stable item identity from the imported file URL for the current session
-- Save and restore resume position
+- The route exists, but it is still a placeholder.
 
-Notes:
+5. Media Server / DLNA
 
-- Support security-scoped resource access immediately.
-- Handle iCloud-backed files conservatively: loading state, playback failure state, readable errors.
-- On visionOS, treat persistent security-scoped bookmark reopening as follow-up work until the platform-specific persistence strategy is confirmed.
+- The route exists, but it is still a placeholder.
 
-Exit criteria:
+## Recommended Next Step
 
-- User can launch app, choose Local Video, pick an `.mp4`, play it, close it, and resume.
+Build Phase 4: Web Video MVP.
 
-## Phase 3: Recent Items and Home Screen State
+This is the best next slice because:
 
-Files:
+- Local playback already works.
+- The shared player foundation is already in place.
+- Web Video does not depend on solving visionOS local-file persistence first.
+- DLNA remains the highest-risk feature and should stay later.
 
-- `Core/Persistence/RecentItemsStore.swift`
-- `Features/Home/RecentItemsSection.swift`
+## Next Implementation Slice: Web Video MVP
 
-Scope:
+### Target Files
 
-- Persist recently opened items
-- Show recent items on the home screen
-- Tapping a recent local item should reopen if access is still valid
+- `NookPlay/NookPlay/Features/WebVideo/WebEntryView.swift`
+- `NookPlay/NookPlay/Features/WebVideo/WebBrowserView.swift`
+- `NookPlay/NookPlay/Features/WebVideo/WKWebViewContainer.swift`
+- `NookPlay/NookPlay/Features/WebVideo/WebBrowserViewModel.swift`
 
-Notes:
+### Scope
 
-- Only add items after successful playback start.
-- If bookmark restore fails, show a recoverable error rather than silently dropping the item.
-- If visionOS local-file reopening remains session-only, defer reopening local recent items across launches and treat the Recent section as display-only or source-limited until persistence is solved.
+- Replace the Web Video placeholder route with a real feature flow.
+- Add a URL entry screen.
+- Normalize simple user input like missing `https://` where appropriate.
+- Present a `WKWebView`-based browser.
+- Support:
+  - back
+  - forward
+  - reload
+  - address entry
+- Enable inline media playback where the site allows it.
 
-Exit criteria:
+### Non-Goals
 
-- Home screen reflects recent local content and can reopen it.
+- No stream extraction.
+- No site-specific parsing.
+- No DRM work.
+- Do not try to force websites into the shared native player pipeline for this first pass.
 
-## Phase 4: Web Video MVP
+### Exit Criteria
 
-Files:
+- A user can choose Web Video from the home screen.
+- A user can enter a URL and open it in an in-app browser.
+- Basic navigation controls work.
+- The project builds cleanly.
 
-- `Features/WebVideo/WebEntryView.swift`
-- `Features/WebVideo/WebBrowserView.swift`
-- `Features/WebVideo/WKWebViewContainer.swift`
-- `Features/WebVideo/WebBrowserViewModel.swift`
+## After Web Video
 
-Scope:
+1. Add Recent items in a safe form
 
-- Accept a URL string
-- Normalize missing schemes where reasonable
-- Open the page in `WKWebView`
-- Enable inline media playback
-- Provide back, forward, reload, and address bar
-- Keep this separate from native `AVPlayer` playback for MVP
+- Start with display-oriented recent metadata.
+- Avoid depending on cross-launch reopening of local files until that storage strategy is confirmed.
 
-Notes:
+2. Revisit the player only if there is a concrete product need
 
-- Treat web as “video-focused in-app browser,” not stream extraction.
-- Do not attempt site-specific parsing or DRM handling in first pass.
+- Keep native controls.
+- Avoid reintroducing custom playback chrome unless required.
 
-Exit criteria:
+3. Begin DLNA only after Web Video is stable
 
-- User can enter a video website URL and use it inside the app in a stable browsing view.
+- Add SSDP discovery.
+- Add server browsing.
+- Add DIDL parsing.
+- Feed selected media into the existing shared player flow.
 
-## Phase 5: Optional Viewing Mode / Immersive Support
+## Working Rules For The Next Agent
 
-Only after local playback and web browsing are stable.
-
-Files:
-
-- `App/SceneCoordinator.swift`
-- `Features/Player/ImmersivePlaybackCoordinator.swift`
-
-Scope:
-
-- Add optional immersive environment entry from the player
-- Keep video playback logic unchanged
-- Use immersion as presentation enhancement, not core architecture
-
-Exit criteria:
-
-- Player works normally in windowed mode and can optionally switch into the designed viewing environment.
-
-## Phase 6: DLNA MVP
-
-Files:
-
-- `Core/Networking/SSDPClient.swift`
-- `Features/DLNA/DLNAServerListView.swift`
-- `Features/DLNA/DLNABrowserView.swift`
-- `Features/DLNA/DLNAService.swift`
-- `Features/DLNA/DIDLParser.swift`
-- `Features/DLNA/DLNAPlayableMedia.swift`
-
-Scope:
-
-- Discover servers via SSDP
-- List discovered servers
-- Browse containers/items
-- Extract playable `.mp4` resources
-- Convert selected item into `DLNAPlayableMedia`
-- Feed into shared `PlayerView`
-- Save resume using server UUID + object ID/resource URL
-
-Notes:
-
-- This is the most failure-prone integration.
-- Keep parsing and networking isolated from UI.
-- Expect partial interoperability across servers.
-
-Exit criteria:
-
-- App can discover at least one standards-compliant DLNA server, browse folders, and play supported items.
-
-## Testing Plan
-
-Use the built-in Testing framework from the start.
-
-Add tests for:
-
-- `PlaybackItemID` stability
-- resume entry save/load behavior
-- recent item persistence
-- URL normalization for web input
-- DLNA XML parsing once introduced
-
-UI/manual validation milestones:
-
-1. Home screen navigation works.
-2. Local `.mp4` playback works.
-3. Resume works after relaunch.
-4. Web browser loads and plays inline media on basic sites.
-5. DLNA discovery and browsing work on a local network.
-
-## Recommended Build Order in This Repo
-
-1. Replace `ContentView.swift` with a real home screen.
-2. Add core models and JSON persistence.
-3. Build the reusable player.
-4. Wire local file import into the player.
-5. Add recent items.
-6. Add the web browser flow.
-7. Add optional immersive presentation.
-8. Add DLNA.
-
-## Pragmatic Decisions
-
-- Remove the RealityKit template content unless you specifically want a branded 3D home scene.
-- Do not introduce SwiftData yet unless you want schema-driven persistence soon.
-- Do not split into multiple windows early; one window with route-based navigation is enough for MVP.
-- Do not start with DLNA. It will slow down the whole project if playback fundamentals are not already solid.
-- On visionOS, do not assume macOS-style security-scoped bookmark persistence is available. Build the local import flow for the active session first, then revisit persistent reopening as a separate task.
+- Prefer Swift Observation over old `ObservableObject` patterns.
+- If a view owns the model, prefer `@State`.
+- Keep detailed property/function comments.
+- Keep `// MARK:` sections in larger files.
+- Use Apple docs or `DocumentationSearch` before relying on newer SwiftUI or visionOS APIs.
+- Ask the user before making assumptions on unresolved platform behavior.
