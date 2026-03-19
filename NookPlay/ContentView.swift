@@ -8,14 +8,26 @@
 import SwiftUI
 
 struct ContentView: View {
-    @EnvironmentObject private var appModel: AppModel
+    @Environment(AppModel.self) private var appModel
 
     var body: some View {
+        @Bindable var appModel = appModel
+
         NavigationStack(path: $appModel.path) {
             HomeView(openRoute: appModel.open)
                 .navigationDestination(for: AppRoute.self) { route in
-                    RoutePlaceholderView(route: route)
+                    destinationView(for: route)
                 }
+        }
+    }
+
+    @ViewBuilder
+    private func destinationView(for route: AppRoute) -> some View {
+        switch route {
+        case .localVideo:
+            PlayerView(mediaSource: DemoMediaSource.bigBuckBunny)
+        case .webVideo, .mediaServer:
+            RoutePlaceholderView(route: route)
         }
     }
 }
@@ -65,5 +77,5 @@ private struct RoutePlaceholderView: View {
 
 #Preview(windowStyle: .automatic) {
     ContentView()
-        .environmentObject(AppModel())
+        .environment(AppModel())
 }

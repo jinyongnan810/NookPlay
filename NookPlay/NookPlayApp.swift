@@ -9,12 +9,12 @@ import SwiftUI
 
 @main
 struct NookPlayApp: App {
-    @StateObject private var appModel = AppModel()
+    @State private var appModel = AppModel()
 
     var body: some Scene {
         WindowGroup {
             ContentView()
-                .environmentObject(appModel)
+                .environment(appModel)
         }
     }
 }
