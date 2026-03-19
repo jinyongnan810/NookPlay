@@ -17,6 +17,10 @@ struct NookPlayApp: App {
     /// The currently selected immersion style for the app's immersive playback scene.
     @State private var immersionStyle: ImmersionStyle = .progressive
 
+    init() {
+        LocalVideoAccessManager.removeStaleTemporaryPlaybackFiles()
+    }
+
     // MARK: Scenes
 
     var body: some Scene {

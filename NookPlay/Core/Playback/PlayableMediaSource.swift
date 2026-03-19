@@ -36,4 +36,12 @@ struct AnyPlayableMediaSource: PlayableMediaSource {
     ///
     /// Remote sources leave this as `nil`.
     let accessSession: SecurityScopedAccess?
+    /// A retained cleanup token for resources that should live for the playback session.
+    ///
+    /// Local photo-library imports use this to delete temporary copied files when
+    /// the player releases the source.
+    let playbackLifetime: PlaybackLifetimeResource?
 }
+
+/// A resource that should remain alive for the duration of a playback session.
+protocol PlaybackLifetimeResource: AnyObject {}

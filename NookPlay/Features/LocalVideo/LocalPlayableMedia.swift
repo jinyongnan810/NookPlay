@@ -19,6 +19,8 @@ struct LocalPlayableMedia: PlayableMediaSource {
     let streamURL: URL
     /// The security-scoped access session that keeps the imported file readable.
     let accessSession: SecurityScopedAccess?
+    /// A retained resource that should live for the duration of playback.
+    let playbackLifetime: PlaybackLifetimeResource?
 
     /// Converts the local media item into the app's type-erased playable source.
     var asMediaSource: AnyPlayableMediaSource {
@@ -27,7 +29,8 @@ struct LocalPlayableMedia: PlayableMediaSource {
             title: title,
             subtitle: subtitle,
             streamURL: streamURL,
-            accessSession: accessSession
+            accessSession: accessSession,
+            playbackLifetime: playbackLifetime
         )
     }
 }
