@@ -9,6 +9,8 @@ import Foundation
 
 struct ResumeEntry: Codable, Sendable {
     let itemID: PlaybackItemID
+    var title: String
+    var subtitle: String?
     var lastPositionSeconds: Double
     var durationSeconds: Double?
     var lastPlayedAt: Date

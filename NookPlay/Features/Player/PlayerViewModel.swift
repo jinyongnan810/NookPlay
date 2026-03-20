@@ -276,6 +276,8 @@ final class PlayerViewModel {
         let durationSeconds = player.currentItem?.duration.seconds
         let entry = ResumeEntry(
             itemID: mediaSource.playbackID,
+            title: mediaSource.title,
+            subtitle: mediaSource.subtitle,
             lastPositionSeconds: currentSeconds,
             durationSeconds: durationSeconds?.isFinite == true ? durationSeconds : nil,
             lastPlayedAt: .now

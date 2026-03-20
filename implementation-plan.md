@@ -26,9 +26,14 @@ This file reflects the repo's current state after the latest implementation sess
 3. Local Video MVP
 
 - `LocalVideoPickerView.swift` uses `fileImporter`.
+- Local playback now also supports videos chosen from Photos via `PhotosPicker`.
 - `LocalVideoAccessManager.swift` manages session-scoped local file access.
 - `LocalPlayableMedia.swift` adapts imported files to the shared playback model.
 - Imported local video is presented with `fullScreenCover`.
+- Files import accepts general movie content instead of only `.mp4`.
+- Photo-library videos are copied into a temporary playback cache for reliable playback.
+- Temporary copied files are cleaned up both on playback release and on app launch.
+- Photo-library videos use a stable playback identity for resume-progress matching.
 
 4. Native fullscreen playback experience
 
@@ -47,6 +52,19 @@ This file reflects the repo's current state after the latest implementation sess
 - Current app files have detailed documentation comments.
 - Larger files use `// MARK:` section separation.
 
+7. Web Video MVP
+
+- `WebEntryView.swift` provides URL entry with persisted prefilled text across launches.
+- `WebBrowserView.swift` presents a minimal in-app browser using `WKWebView`.
+- `WKWebViewContainer.swift` enables inline media playback where websites allow it.
+- `WebBrowserViewModel.swift` normalizes entered URLs and coordinates browser state.
+
+8. Recent playback metadata
+
+- The Home screen now shows a display-only Recent section driven by resume metadata.
+- `ResumeEntry.swift` stores lightweight display metadata alongside progress.
+- Recent items do not reopen local files across launches yet.
+
 ### Deferred / Known Limits
 
 1. Persistent local-file reopening across launches
@@ -54,10 +72,14 @@ This file reflects the repo's current state after the latest implementation sess
 - The current local-file flow is session-first.
 - visionOS persistent bookmark / reopen behavior has not been finalized.
 - Do not assume macOS-like bookmark persistence is correct here without verification.
+- A future implementation should target Files-based local videos first, since they already
+  have stable playback identity and are more viable than Photos-based copied imports.
+- The likely path is security-scoped bookmark persistence plus explicit reopen validation on
+  real hardware before wiring Recent items into playable reopen actions.
 
 2. Recent items reopening for local files
 
-- A Recent section exists visually on the home screen, but recent-item persistence has not been implemented yet.
+- A Recent section now exists and is backed by persisted display metadata.
 - Reopening local recents across launches should stay deferred until persistent local-file access is solved.
 
 3. Minimum window size enforcement
@@ -69,79 +91,68 @@ This file reflects the repo's current state after the latest implementation sess
 - A TODO remains in `NookPlayApp.swift`.
 - For now, the layout should simply remain resilient in small windows.
 
-4. Web Video
-
-- The route exists, but it is still a placeholder.
-
-5. Media Server / DLNA
+4. Media Server / DLNA
 
 - The route exists, but it is still a placeholder.
 
 ## Recommended Next Step
 
-Build Phase 4: Web Video MVP.
+Build Phase 5: Media Server / DLNA discovery MVP.
 
 This is the best next slice because:
 
-- Local playback already works.
-- The shared player foundation is already in place.
-- Web Video does not depend on solving visionOS local-file persistence first.
-- DLNA remains the highest-risk feature and should stay later.
+- Local playback and Web Video now both work.
+- The Home screen can already surface saved playback metadata safely.
+- Persistent local-file reopen remains platform-sensitive and should stay deferred.
+- DLNA discovery is the next meaningful product capability without forcing bookmark work first.
 
-## Next Implementation Slice: Web Video MVP
+## Next Implementation Slice: Media Server / DLNA Discovery MVP
 
 ### Target Files
 
-- `NookPlay/NookPlay/Features/WebVideo/WebEntryView.swift`
-- `NookPlay/NookPlay/Features/WebVideo/WebBrowserView.swift`
-- `NookPlay/NookPlay/Features/WebVideo/WKWebViewContainer.swift`
-- `NookPlay/NookPlay/Features/WebVideo/WebBrowserViewModel.swift`
+- `NookPlay/NookPlay/Features/MediaServer/MediaServerView.swift`
+- `NookPlay/NookPlay/Features/MediaServer/MediaServerViewModel.swift`
+- `NookPlay/NookPlay/Features/MediaServer/DLNAServiceDiscovery.swift`
+- `NookPlay/NookPlay/Info.plist`
 
 ### Scope
 
-- Replace the Web Video placeholder route with a real feature flow.
-- Add a URL entry screen.
-- Normalize simple user input like missing `https://` where appropriate.
-- Present a `WKWebView`-based browser.
-- Support:
-  - back
-  - forward
-  - reload
-  - address entry
-- Enable inline media playback where the site allows it.
+- Replace the Media Server placeholder route with a real discovery screen.
+- Send SSDP discovery requests on the local network.
+- Collect responding DLNA/UPnP media servers.
+- Show a list of discovered servers with lightweight metadata.
+- Handle empty, loading, and error states cleanly.
 
 ### Non-Goals
 
-- No stream extraction.
-- No site-specific parsing.
-- No DRM work.
-- Do not try to force websites into the shared native player pipeline for this first pass.
+- No full server browsing yet.
+- No DIDL-Lite media listing yet.
+- No playback handoff from DLNA selections yet.
+- Do not assume multicast entitlements or local-network permissions are already configured correctly without testing.
 
 ### Exit Criteria
 
-- A user can choose Web Video from the home screen.
-- A user can enter a URL and open it in an in-app browser.
-- Basic navigation controls work.
+- A user can choose Media Server from the home screen.
+- A user can trigger a scan for DLNA/UPnP servers on the local network.
+- Discovered servers appear in the UI with stable deduping.
 - The project builds cleanly.
 
-## After Web Video
+## After DLNA Discovery
 
-1. Add Recent items in a safe form
+1. Add server browsing and DIDL parsing
 
-- Start with display-oriented recent metadata.
-- Avoid depending on cross-launch reopening of local files until that storage strategy is confirmed.
+- Fetch device descriptions and content directories as needed.
+- Parse DIDL-Lite containers and playable items.
 
-2. Revisit the player only if there is a concrete product need
+2. Feed DLNA selections into the shared player pipeline
 
-- Keep native controls.
-- Avoid reintroducing custom playback chrome unless required.
+- Reuse `PlayableMediaSource` where possible.
+- Decide whether remote stream resume persistence should be supported.
 
-3. Begin DLNA only after Web Video is stable
+3. Revisit persistent Files-based local reopen on real hardware
 
-- Add SSDP discovery.
-- Add server browsing.
-- Add DIDL parsing.
-- Feed selected media into the existing shared player flow.
+- Validate visionOS bookmark persistence.
+- Add explicit reopen flows for Recent local items only after that validation.
 
 ## Working Rules For The Next Agent
 

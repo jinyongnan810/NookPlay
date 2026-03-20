@@ -25,6 +25,18 @@ actor PlaybackProgressStore {
         return allEntries[itemID.storageKey]
     }
 
+    func loadRecentEntries(limit: Int? = nil) -> [ResumeEntry] {
+        let sortedEntries = loadAllEntries()
+            .values
+            .sorted { $0.lastPlayedAt > $1.lastPlayedAt }
+
+        guard let limit else {
+            return sortedEntries
+        }
+
+        return Array(sortedEntries.prefix(limit))
+    }
+
     func saveResumeEntry(_ entry: ResumeEntry) {
         var allEntries = loadAllEntries()
         allEntries[entry.itemID.storageKey] = entry
