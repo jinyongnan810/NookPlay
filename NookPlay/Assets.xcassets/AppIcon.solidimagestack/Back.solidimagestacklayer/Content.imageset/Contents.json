@@ -1,6 +1,7 @@
 {
   "images" : [
     {
+      "filename" : "NookPlay_icon_background.svg",
       "idiom" : "vision",
       "scale" : "2x"
     }
