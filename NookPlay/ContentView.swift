@@ -46,7 +46,7 @@ struct ContentView: View {
         case .webVideo:
             WebEntryView()
         case .mediaServer:
-            RoutePlaceholderView(route: route)
+            MediaServerView()
         }
     }
 }
