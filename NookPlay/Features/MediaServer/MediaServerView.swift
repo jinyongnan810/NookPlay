@@ -55,7 +55,7 @@ struct MediaServerView: View {
                 if viewModel.isScanning {
                     Label("Scanning…", systemImage: "dot.radiowaves.left.and.right")
                 } else {
-                    Label("Scan for Servers", systemImage: "network")
+                    Label("Scan for Servers", systemImage: "dot.radiowaves.left.and.right")
                 }
             }
             .buttonStyle(.borderedProminent)

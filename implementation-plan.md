@@ -97,16 +97,15 @@ This file reflects the repo's current state after the latest implementation sess
 
 ## Recommended Next Step
 
-Build Phase 5: Media Server / DLNA discovery MVP.
+Wait for multicast entitlement approval, then resume DLNA work.
 
-This is the best next slice because:
+This is the correct pause point because:
 
-- Local playback and Web Video now both work.
-- The Home screen can already surface saved playback metadata safely.
-- Persistent local-file reopen remains platform-sensitive and should stay deferred.
-- DLNA discovery is the next meaningful product capability without forcing bookmark work first.
+- Local playback, Web Video, and Recent metadata are already in place.
+- DLNA discovery code now exists, but device testing is blocked by multicast networking entitlement approval.
+- Persistent Files-based local reopen also remains intentionally deferred pending platform validation.
 
-## Next Implementation Slice: Media Server / DLNA Discovery MVP
+## Next Implementation Slice After Entitlement Approval: Media Server / DLNA Discovery MVP
 
 ### Target Files
 
@@ -136,6 +135,17 @@ This is the best next slice because:
 - A user can trigger a scan for DLNA/UPnP servers on the local network.
 - Discovered servers appear in the UI with stable deduping.
 - The project builds cleanly.
+
+## DLNA Status / Blocker
+
+- `MediaServerView.swift`, `MediaServerViewModel.swift`, and `DLNAServiceDiscovery.swift` now implement a first-pass SSDP discovery flow.
+- `Info.plist` includes local-network usage messaging.
+- Device testing showed SSDP send failure with error code 65 (`No route to host`) before discovery responses were received.
+- This is currently treated as a platform/signing blocker rather than an app-logic blocker.
+- The likely missing requirement is Apple approval plus provisioning support for the multicast entitlement:
+  - `com.apple.developer.networking.multicast`
+- The user has already submitted the required request to Apple.
+- Do not spend more time trying alternate SSDP transport code paths until entitlement approval/provisioning has been re-tested.
 
 ## After DLNA Discovery
 

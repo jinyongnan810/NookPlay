@@ -37,6 +37,14 @@ struct LocalVideoPickerView: View {
     @State private var isPhotosPickerPresented = false
     /// Tracks whether the app is currently processing the selected file.
     @State private var isImporting = false
+    /// The active import task, if the current import is cancellable.
+    @State private var importTask: Task<Void, Never>?
+    /// The transfer progress reported by the current import, when available.
+    @State private var importTransferProgress: Progress?
+    /// A polled fraction-complete value for the current import.
+    @State private var importProgressValue: Double?
+    /// A polling task that mirrors `Progress.fractionCompleted` into SwiftUI state.
+    @State private var importProgressPollingTask: Task<Void, Never>?
     /// The selected photo library item awaiting import.
     @State private var selectedPhotoItem: PhotosPickerItem?
 
@@ -50,37 +58,51 @@ struct LocalVideoPickerView: View {
     // MARK: Body
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 24) {
-            ContentUnavailableView {
-                Label("Local Video", systemImage: "film.stack")
-            } description: {
-                Text("Choose a supported video from Files, iCloud, or Photos to play it in NookPlay.")
-            } actions: {
-                Button("Choose from Files") {
-                    importErrorMessage = nil
-                    isImporterPresented = true
-                }
-                .buttonStyle(.borderedProminent)
-
-                Button("Choose from Photos") {
-                    importErrorMessage = nil
-                    isPhotosPickerPresented = true
+        ZStack {
+            VStack(alignment: .leading, spacing: 24) {
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("Browse supported videos from Files, iCloud, or your photo library.")
+                        .font(.title3)
+                        .foregroundStyle(.secondary)
                 }
 
-                if isImporting {
-                    ProgressView()
-                        .controlSize(.large)
-                        .padding(.top, 8)
+                HStack(spacing: 18) {
+                    localSourceButton(
+                        title: "Files",
+                        subtitle: "Browse local files and iCloud Drive.",
+                        systemImage: "folder.fill"
+                    ) {
+                        importErrorMessage = nil
+                        isImporterPresented = true
+                    }
+
+                    localSourceButton(
+                        title: "Photos",
+                        subtitle: "Import a video from your library.",
+                        systemImage: "photo.on.rectangle.angled"
+                    ) {
+                        importErrorMessage = nil
+                        isPhotosPickerPresented = true
+                    }
+                }
+
+                if let importErrorMessage {
+                    Text(importErrorMessage)
+                        .foregroundStyle(.red)
                 }
             }
+            .frame(maxWidth: 760, alignment: .leading)
+            .padding(.horizontal, 24)
+            .padding(.vertical, 20)
+            .disabled(isImporting)
 
-            if let importErrorMessage {
-                Text(importErrorMessage)
-                    .foregroundStyle(.red)
-                    .padding(.horizontal, 32)
+            if isImporting {
+                importOverlay
             }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .navigationTitle("Local Video")
+        .navigationBarTitleDisplayMode(.inline)
         .fileImporter(
             isPresented: $isImporterPresented,
             allowedContentTypes: Self.supportedVideoContentTypes,
@@ -98,9 +120,8 @@ struct LocalVideoPickerView: View {
             }
 
             importErrorMessage = nil
-            isImporting = true
-
-            Task {
+            beginImport()
+            importTask = Task {
                 await importPhotoLibraryItem(newItem)
             }
         }
@@ -118,6 +139,100 @@ struct LocalVideoPickerView: View {
                 PlayerView(mediaSource: importedMediaSource)
             }
         }
+        .onDisappear {
+            cancelImport()
+        }
+    }
+
+    // MARK: View Building
+
+    /// Creates a local-source action button sized to share row space evenly.
+    ///
+    /// - Parameters:
+    ///   - title: The main label for the source.
+    ///   - subtitle: The supporting description for the source.
+    ///   - systemImage: The SF Symbol representing the source.
+    ///   - isProminent: Whether to use the prominent bordered style.
+    ///   - action: The action to run when the button is selected.
+    /// - Returns: A consistently sized source button view.
+    @ViewBuilder
+    private func localSourceButton(
+        title: String,
+        subtitle: String,
+        systemImage: String,
+        action: @escaping () -> Void
+    ) -> some View {
+        let label = VStack(alignment: .center, spacing: 18) {
+            Spacer(minLength: 0)
+
+            ZStack {
+                RoundedRectangle(cornerRadius: 22, style: .continuous)
+                    .fill(Color.accentColor.tertiary)
+                    .frame(width: 100, height: 100)
+
+                Image(systemName: systemImage)
+                    .font(.system(size: 40, weight: .semibold))
+                    .symbolRenderingMode(.hierarchical)
+            }
+
+            VStack(alignment: .center, spacing: 8) {
+                Text(title)
+                    .font(.title3.weight(.semibold))
+
+                Text(subtitle)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Spacer(minLength: 0)
+        }
+        .frame(maxWidth: .infinity, minHeight: 210, alignment: .center)
+        .padding(24)
+
+        Button(action: action) {
+            label
+        }
+        .buttonStyle(.bordered)
+        .buttonBorderShape(.roundedRectangle(radius: 30))
+        .controlSize(.large)
+    }
+
+    /// A full-screen overlay describing the current import and offering cancellation.
+    private var importOverlay: some View {
+        ZStack {
+            Rectangle()
+                .fill(.black.opacity(0.2))
+                .ignoresSafeArea()
+
+            VStack(spacing: 18) {
+                if let importProgressValue {
+                    ProgressView(value: importProgressValue)
+                        .frame(width: 260)
+
+                    Text("Preparing video \(Int(importProgressValue * 100))%")
+                        .font(.headline)
+                } else {
+                    ProgressView()
+                        .controlSize(.large)
+
+                    Text("Preparing video…")
+                        .font(.headline)
+                }
+
+                Text("You can cancel now and return to the picker.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+
+                Button("Cancel Loading") {
+                    cancelImport()
+                }
+                .buttonStyle(.borderedProminent)
+            }
+            .padding(28)
+            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 28, style: .continuous))
+        }
     }
 
     // MARK: Actions
@@ -128,28 +243,36 @@ struct LocalVideoPickerView: View {
     private func handleImportResult(_ result: Result<URL, Error>) {
         switch result {
         case let .success(url):
-            isImporting = true
-
-            Task {
+            beginImport()
+            importTask = Task {
                 do {
                     let media = try await MainActor.run {
                         try accessManager.importPlayableMedia(from: url)
                     }
 
+                    guard !Task.isCancelled else {
+                        return
+                    }
+
                     await MainActor.run {
                         importedMediaSource = media.asMediaSource
-                        isImporting = false
+                        finishImport()
                     }
                 } catch {
                     await MainActor.run {
+                        guard !isImportCancelled(error) else {
+                            finishImport()
+                            return
+                        }
+
                         importErrorMessage = error.localizedDescription
-                        isImporting = false
+                        finishImport()
                     }
                 }
             }
         case let .failure(error):
             importErrorMessage = error.localizedDescription
-            isImporting = false
+            finishImport()
         }
     }
 
@@ -163,9 +286,9 @@ struct LocalVideoPickerView: View {
         }
 
         do {
-            guard let importedMovie = try await item.loadTransferable(type: ImportedMovieFile.self) else {
+            guard let importedMovie = try await loadImportedMovie(from: item) else {
                 importErrorMessage = "NookPlay couldn’t load the selected photo library video."
-                isImporting = false
+                finishImport()
                 return
             }
 
@@ -185,12 +308,113 @@ struct LocalVideoPickerView: View {
                 playbackLifetime: preparedMovie.playbackLifetime
             )
 
+            guard !Task.isCancelled else {
+                finishImport()
+                return
+            }
+
             importedMediaSource = media.asMediaSource
-            isImporting = false
+            finishImport()
         } catch {
+            guard !isImportCancelled(error) else {
+                finishImport()
+                return
+            }
+
             importErrorMessage = error.localizedDescription
-            isImporting = false
+            finishImport()
         }
+    }
+
+    /// Loads a photo-library movie while capturing any available transfer progress.
+    ///
+    /// - Parameter item: The selected photo-library item to import.
+    /// - Returns: The imported movie file, or `nil` if the provider returns no file.
+    private func loadImportedMovie(from item: PhotosPickerItem) async throws -> ImportedMovieFile? {
+        try await withCheckedThrowingContinuation { continuation in
+            let progress = item.loadTransferable(type: ImportedMovieFile.self) { result in
+                Task { @MainActor in
+                    switch result {
+                    case let .success(movie):
+                        continuation.resume(returning: movie)
+                    case let .failure(error):
+                        continuation.resume(throwing: error)
+                    }
+                }
+            }
+
+            Task { @MainActor in
+                trackImportProgress(progress)
+            }
+        }
+    }
+
+    /// Starts a new import session and resets transient import UI state.
+    @MainActor
+    private func beginImport() {
+        importTask?.cancel()
+        importProgressPollingTask?.cancel()
+        importTask = nil
+        importTransferProgress = nil
+        importProgressValue = nil
+        isImporting = true
+    }
+
+    /// Completes the current import session and clears transient progress state.
+    @MainActor
+    private func finishImport() {
+        importTask?.cancel()
+        importProgressPollingTask?.cancel()
+        importTask = nil
+        importTransferProgress = nil
+        importProgressValue = nil
+        isImporting = false
+    }
+
+    /// Cancels the active import work and clears the overlay state.
+    @MainActor
+    private func cancelImport() {
+        importTransferProgress?.cancel()
+        importTask?.cancel()
+        finishImport()
+    }
+
+    /// Tracks a `Progress` object so the overlay can show percentage updates.
+    ///
+    /// - Parameter progress: The import progress reported by the current provider.
+    @MainActor
+    private func trackImportProgress(_ progress: Progress) {
+        importTransferProgress = progress
+        importProgressValue = progress.totalUnitCount > 0 ? progress.fractionCompleted : nil
+        importProgressPollingTask?.cancel()
+        importProgressPollingTask = Task {
+            while !Task.isCancelled, !progress.isFinished {
+                await MainActor.run {
+                    importProgressValue = progress.totalUnitCount > 0 ? progress.fractionCompleted : nil
+                }
+
+                try? await Task.sleep(for: .milliseconds(120))
+            }
+
+            await MainActor.run {
+                importProgressValue = progress.totalUnitCount > 0 ? progress.fractionCompleted : importProgressValue
+            }
+        }
+    }
+
+    /// Determines whether an error represents user-driven or programmatic cancellation.
+    ///
+    /// - Parameter error: The error to inspect.
+    /// - Returns: `true` when the error is a cancellation error.
+    private func isImportCancelled(_ error: Error) -> Bool {
+        if error is CancellationError {
+            return true
+        }
+
+        let nsError = error as NSError
+        return nsError.domain == NSCocoaErrorDomain && nsError.code == NSUserCancelledError
+            || nsError.domain == NSItemProvider.errorDomain && nsError.code == NSUserCancelledError
+            || nsError.domain == "CoreTransferable.TransferableSupportError"
     }
 
     /// Prepares a transferred photo-library movie for playback using the configured import mode.
