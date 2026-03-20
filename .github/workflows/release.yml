@@ -36,7 +36,7 @@ jobs:
       - name: Get current version
         id: current
         run: |
-          VERSION=$(grep -m1 "MARKETING_VERSION" JumpRec.xcodeproj/project.pbxproj \
+          VERSION=$(grep -m1 "MARKETING_VERSION" NookPlay.xcodeproj/project.pbxproj \
             | sed 's/.*= //;s/;//;s/[[:space:]]//g')
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "Current version: $VERSION"
@@ -51,7 +51,7 @@ jobs:
       - name: Commit version bump
         if: inputs.action != 'keep'
         run: |
-          git add JumpRec.xcodeproj/project.pbxproj
+          git add NookPlay.xcodeproj/project.pbxproj
           git commit -m "chore: bump version to ${{ steps.bump.outputs.new_version }}"
           git push origin main
 
