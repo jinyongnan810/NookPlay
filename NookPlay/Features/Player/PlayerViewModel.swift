@@ -13,7 +13,12 @@ import SwiftUI
 
 @MainActor
 @Observable
-final class PlayerViewModel {
+final class PlayerViewModel: Identifiable {
+    private static let resumeCompletionThresholdSeconds: Double = 10
+    private static let progressSaveIntervalSeconds: Double = 10
+
+    let id = UUID()
+
     // MARK: Observable State
 
     /// The most recently observed playback time in seconds.
@@ -52,6 +57,10 @@ final class PlayerViewModel {
 
     /// Indicates whether the initial resume seek has already been attempted.
     private var hasAppliedInitialResume = false
+    /// The most recent playback position persisted to disk.
+    private var lastSavedProgressTime: Double = 0
+    /// Indicates whether player observation has already been configured.
+    private var hasPreparedPlayer = false
 
     // MARK: Initialization
 
@@ -86,6 +95,13 @@ final class PlayerViewModel {
 
     /// Prepares the player for presentation and starts playback.
     func prepare() {
+        guard !hasPreparedPlayer else {
+            player.play()
+            isPlaying = true
+            return
+        }
+
+        hasPreparedPlayer = true
         observePlayer()
         observeCompletion()
         player.play()
@@ -98,7 +114,7 @@ final class PlayerViewModel {
             player.pause()
             isPlaying = false
             Task {
-                await saveProgress()
+                await saveProgress(force: true)
             }
         } else {
             player.play()
@@ -121,7 +137,7 @@ final class PlayerViewModel {
         isPlaying = false
 
         Task {
-            await saveProgress()
+            await saveProgress(force: true)
         }
     }
 
@@ -134,7 +150,7 @@ final class PlayerViewModel {
         }
 
         Task {
-            await saveProgress()
+            await saveProgress(force: true)
         }
     }
 
@@ -202,6 +218,7 @@ final class PlayerViewModel {
                 }
 
                 self.isPlaying = false
+                self.lastSavedProgressTime = 0
                 await self.progressStore.removeResumeEntry(for: self.mediaSource.playbackID)
             }
         }
@@ -261,15 +278,35 @@ final class PlayerViewModel {
             return
         }
 
+        let knownDuration: Double? = if duration > 0 {
+            duration
+        } else if let entryDuration = entry.durationSeconds, entryDuration > 0 {
+            entryDuration
+        } else {
+            nil
+        }
+
+        if let knownDuration,
+           entry.lastPositionSeconds >= knownDuration - Self.resumeCompletionThresholdSeconds {
+            lastSavedProgressTime = 0
+            await progressStore.removeResumeEntry(for: mediaSource.playbackID)
+            return
+        }
+
         let resumeTime = CMTime(seconds: entry.lastPositionSeconds, preferredTimescale: 600)
         await player.seek(to: resumeTime, toleranceBefore: .zero, toleranceAfter: .zero)
         currentTime = entry.lastPositionSeconds
+        lastSavedProgressTime = entry.lastPositionSeconds
     }
 
     /// Saves the current playback progress for later resume.
-    private func saveProgress() async {
+    private func saveProgress(force: Bool = false) async {
         let currentSeconds = player.currentTime().seconds
         guard currentSeconds.isFinite, currentSeconds > 0 else {
+            return
+        }
+
+        if !force, currentSeconds - lastSavedProgressTime < Self.progressSaveIntervalSeconds {
             return
         }
 
@@ -283,5 +320,6 @@ final class PlayerViewModel {
             lastPlayedAt: .now
         )
         await progressStore.saveResumeEntry(entry)
+        lastSavedProgressTime = currentSeconds
     }
 }

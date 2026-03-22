@@ -27,6 +27,10 @@ struct LocalVideoPickerView: View {
     /// when testing real-device behavior.
     private static let photoLibraryImportMode: PhotoLibraryImportMode = .copyToTemporaryFile
 
+    // MARK: Environment
+
+    @Environment(AppModel.self) private var appModel
+
     // MARK: State
 
     /// The helper that converts imported file URLs into playable media.
@@ -48,10 +52,6 @@ struct LocalVideoPickerView: View {
     /// The selected photo library item awaiting import.
     @State private var selectedPhotoItem: PhotosPickerItem?
 
-    /// The currently imported media source, if import succeeded.
-    ///
-    /// When this becomes non-`nil`, the view presents the fullscreen player.
-    @State private var importedMediaSource: AnyPlayableMediaSource?
     /// The latest user-facing import error, if any.
     @State private var importErrorMessage: String?
 
@@ -60,11 +60,9 @@ struct LocalVideoPickerView: View {
     var body: some View {
         ZStack {
             VStack(alignment: .leading, spacing: 24) {
-                VStack(alignment: .leading, spacing: 10) {
-                    Text("Browse supported videos from Files, iCloud, or your photo library.")
-                        .font(.title3)
-                        .foregroundStyle(.secondary)
-                }
+                Text("Browse supported videos from Files, iCloud, or your photo library.")
+                    .font(.title3)
+                    .foregroundStyle(.secondary)
 
                 HStack(spacing: 18) {
                     localSourceButton(
@@ -123,20 +121,6 @@ struct LocalVideoPickerView: View {
             beginImport()
             importTask = Task {
                 await importPhotoLibraryItem(newItem)
-            }
-        }
-        .fullScreenCover(
-            isPresented: Binding(
-                get: { importedMediaSource != nil },
-                set: { isPresented in
-                    if !isPresented {
-                        importedMediaSource = nil
-                    }
-                }
-            )
-        ) {
-            if let importedMediaSource {
-                PlayerView(mediaSource: importedMediaSource)
             }
         }
         .onDisappear {
@@ -255,7 +239,7 @@ struct LocalVideoPickerView: View {
                     }
 
                     await MainActor.run {
-                        importedMediaSource = media.asMediaSource
+                        appModel.presentPlayer(for: media.asMediaSource)
                         finishImport()
                     }
                 } catch {
@@ -313,7 +297,7 @@ struct LocalVideoPickerView: View {
                 return
             }
 
-            importedMediaSource = media.asMediaSource
+            appModel.presentPlayer(for: media.asMediaSource)
             finishImport()
         } catch {
             guard !isImportCancelled(error) else {
@@ -387,6 +371,7 @@ struct LocalVideoPickerView: View {
         importTransferProgress = progress
         importProgressValue = progress.totalUnitCount > 0 ? progress.fractionCompleted : nil
         importProgressPollingTask?.cancel()
+        // ⭐️ Update progress
         importProgressPollingTask = Task {
             while !Task.isCancelled, !progress.isFinished {
                 await MainActor.run {

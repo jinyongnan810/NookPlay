@@ -9,6 +9,8 @@ import SwiftUI
 
 @main
 struct NookPlayApp: App {
+    private static let mainWindowID = "main-window"
+
     // MARK: State
 
     /// Shared app state injected into both the main window and immersive scene.
@@ -24,7 +26,7 @@ struct NookPlayApp: App {
     // MARK: Scenes
 
     var body: some Scene {
-        WindowGroup {
+        WindowGroup(id: Self.mainWindowID) {
             ContentView()
                 .environment(appModel)
         }

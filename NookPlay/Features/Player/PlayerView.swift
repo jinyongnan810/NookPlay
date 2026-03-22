@@ -17,6 +17,8 @@ struct PlayerView: View {
 
     /// Shared app state used for immersive playback handoff.
     @Environment(AppModel.self) private var appModel
+    /// Window dismissal action used to hide the main app window during immersive playback.
+    @Environment(\.dismissWindow) private var dismissWindow
     /// System action used to open the app's immersive playback scene.
     @Environment(\.openImmersiveSpace) private var openImmersiveSpace
     /// System action used to dismiss the app's immersive playback scene.
@@ -28,11 +30,18 @@ struct PlayerView: View {
 
     // MARK: Initialization
 
+    /// Creates a playback screen for an existing shared playback session.
+    ///
+    /// - Parameter viewModel: The shared playback view model to present.
+    init(viewModel: PlayerViewModel) {
+        _viewModel = State(initialValue: viewModel)
+    }
+
     /// Creates a playback screen for a specific media source.
     ///
     /// - Parameter mediaSource: The media item that should be played.
     init(mediaSource: AnyPlayableMediaSource) {
-        _viewModel = State(initialValue: PlayerViewModel(mediaSource: mediaSource))
+        self.init(viewModel: PlayerViewModel(mediaSource: mediaSource))
     }
 
     // MARK: Body
@@ -49,39 +58,35 @@ struct PlayerView: View {
                     Text(errorMessage)
                 }
                 .foregroundStyle(.white)
+            } else if appModel.immersivePlayer != nil {
+                Color.black
+                    .ignoresSafeArea()
             } else {
                 SystemVideoPlayer(player: viewModel.player, videoGravity: .resizeAspect)
                     .ignoresSafeArea()
             }
         }
         .immersiveEnvironmentPicker {
-            Button("Immersive Theater", systemImage: "vision.pro") {
+            Button("Void", systemImage: "vision.pro") {
                 Task {
-                    appModel.beginImmersivePlayback(
-                        player: viewModel.player,
-                        title: viewModel.mediaSource.title,
-                        aspectRatio: viewModel.videoAspectRatio
-                    )
+                    appModel.beginImmersivePlayback(with: viewModel, aspectRatio: viewModel.videoAspectRatio)
                     _ = await openImmersiveSpace(id: "player-immersive-space")
+                    dismissWindow(id: "main-window")
                 }
             }
-
-            Button("Exit Immersive", systemImage: "xmark.circle") {
-                Task {
-                    await dismissImmersiveSpace()
-                    appModel.endImmersivePlayback()
-                }
-            }
-            .disabled(appModel.immersivePlayer == nil)
         }
         .task {
             viewModel.prepare()
         }
         .onDisappear {
+            guard appModel.immersivePlayer !== viewModel.player else {
+                return
+            }
+
             viewModel.handleDisappear()
+            appModel.endPlayback(for: viewModel)
             Task {
                 await dismissImmersiveSpace()
-                appModel.endImmersivePlayback()
             }
         }
         .onChange(of: scenePhase) { _, newPhase in
@@ -94,4 +99,5 @@ struct PlayerView: View {
     NavigationStack {
         PlayerView(mediaSource: DemoMediaSource.bigBuckBunny)
     }
+    .environment(AppModel())
 }

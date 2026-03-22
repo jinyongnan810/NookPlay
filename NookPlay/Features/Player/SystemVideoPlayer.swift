@@ -34,7 +34,7 @@ struct SystemVideoPlayer: UIViewControllerRepresentable {
         controller.showsPlaybackControls = true
         controller.videoGravity = videoGravity
         controller.view.backgroundColor = .black
-        controller.updatesNowPlayingInfoCenter = false
+        controller.updatesNowPlayingInfoCenter = true
         return controller
     }
 

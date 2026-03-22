@@ -11,6 +11,10 @@ import SwiftUI
 ///
 /// This view hosts the app's three top-level video areas in tabs.
 struct ContentView: View {
+    // MARK: Environment
+
+    @Environment(AppModel.self) private var appModel
+
     // MARK: Tabs
 
     /// The top-level tabs shown in the main window.
@@ -54,6 +58,27 @@ struct ContentView: View {
             .tag(AppTab.mediaServer)
         }
         .tabViewStyle(.sidebarAdaptable)
+        .fullScreenCover(
+            isPresented: Binding(
+                get: {
+                    appModel.isPlayerPresented && appModel.activePlayerViewModel != nil
+                },
+                set: { isPresented in
+                    guard !isPresented,
+                          appModel.immersivePlayer == nil,
+                          let activePlayerViewModel = appModel.activePlayerViewModel
+                    else {
+                        return
+                    }
+
+                    appModel.endPlayback(for: activePlayerViewModel)
+                }
+            )
+        ) {
+            if let activePlayerViewModel = appModel.activePlayerViewModel {
+                PlayerView(viewModel: activePlayerViewModel)
+            }
+        }
     }
 }
 

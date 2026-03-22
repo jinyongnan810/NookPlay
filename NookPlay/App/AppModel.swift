@@ -35,6 +35,10 @@ final class AppModel {
     ///
     /// A fallback 16:9 value is used until actual presentation metadata is available.
     var immersiveAspectRatio: CGFloat = 16 / 9
+    /// The current shared playback session, if one is active.
+    var activePlayerViewModel: PlayerViewModel?
+    /// Whether the windowed player UI should currently be presented.
+    var isPlayerPresented = false
 
     /// Pushes a destination onto the main window's navigation path.
     ///
@@ -43,16 +47,25 @@ final class AppModel {
         path.append(route)
     }
 
+    /// Starts a new shared playback session and presents the windowed player.
+    ///
+    /// - Parameter mediaSource: The media item to play.
+    func presentPlayer(for mediaSource: AnyPlayableMediaSource) {
+        activePlayerViewModel = PlayerViewModel(mediaSource: mediaSource)
+        isPlayerPresented = true
+    }
+
     /// Starts an immersive playback session using the same player as windowed playback.
     ///
     /// - Parameters:
-    ///   - player: The shared player instance that should continue playing in immersive space.
-    ///   - title: The user-facing title for the current media item.
+    ///   - viewModel: The shared playback session that should continue in immersive space.
     ///   - aspectRatio: The current media aspect ratio for immersive layout.
-    func beginImmersivePlayback(player: AVPlayer, title: String, aspectRatio: CGFloat) {
-        immersivePlayer = player
-        immersiveTitle = title
+    func beginImmersivePlayback(with viewModel: PlayerViewModel, aspectRatio: CGFloat) {
+        activePlayerViewModel = viewModel
+        immersivePlayer = viewModel.player
+        immersiveTitle = viewModel.mediaSource.title
         immersiveAspectRatio = aspectRatio
+        isPlayerPresented = false
     }
 
     /// Clears the current immersive playback state.
@@ -63,5 +76,27 @@ final class AppModel {
         immersivePlayer = nil
         immersiveTitle = nil
         immersiveAspectRatio = 16 / 9
+    }
+
+    /// Restores the shared playback session into the windowed player UI.
+    func restoreWindowedPlayback() {
+        guard activePlayerViewModel != nil else {
+            return
+        }
+
+        isPlayerPresented = true
+    }
+
+    /// Ends the current shared playback session when its owning player view is dismissed.
+    ///
+    /// - Parameter viewModel: The player view model being dismissed.
+    func endPlayback(for viewModel: PlayerViewModel) {
+        guard activePlayerViewModel === viewModel else {
+            return
+        }
+
+        isPlayerPresented = false
+        activePlayerViewModel = nil
+        endImmersivePlayback()
     }
 }
