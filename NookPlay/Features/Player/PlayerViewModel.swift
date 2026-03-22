@@ -287,7 +287,8 @@ final class PlayerViewModel: Identifiable {
         }
 
         if let knownDuration,
-           entry.lastPositionSeconds >= knownDuration - Self.resumeCompletionThresholdSeconds {
+           entry.lastPositionSeconds >= knownDuration - Self.resumeCompletionThresholdSeconds
+        {
             lastSavedProgressTime = 0
             await progressStore.removeResumeEntry(for: mediaSource.playbackID)
             return
