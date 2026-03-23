@@ -65,7 +65,6 @@ struct ContentView: View {
                 },
                 set: { isPresented in
                     guard !isPresented,
-                          appModel.immersivePlayer == nil,
                           let activePlayerViewModel = appModel.activePlayerViewModel
                     else {
                         return

@@ -19,8 +19,6 @@ struct PlayerView: View {
     @Environment(AppModel.self) private var appModel
     /// Dismiss action for the fullscreen player presentation.
     @Environment(\.dismiss) private var dismiss
-    /// Window dismissal action used to hide the main app window during immersive playback.
-    @Environment(\.dismissWindow) private var dismissWindow
     /// System action used to open the app's immersive playback scene.
     @Environment(\.openImmersiveSpace) private var openImmersiveSpace
     /// System action used to dismiss the app's immersive playback scene.
@@ -60,9 +58,6 @@ struct PlayerView: View {
                     Text(errorMessage)
                 }
                 .foregroundStyle(.white)
-            } else if appModel.immersivePlayer != nil {
-                Color.black
-                    .ignoresSafeArea()
             } else {
                 SystemVideoPlayer(
                     player: viewModel.player,
@@ -73,11 +68,13 @@ struct PlayerView: View {
             }
         }
         .immersiveEnvironmentPicker {
-            Button("Void", systemImage: "vision.pro") {
+            Button(appModel.isImmersiveSpacePresented ? "Close Environment" : "Open Environment", systemImage: "vision.pro") {
                 Task {
-                    appModel.beginImmersivePlayback(with: viewModel, aspectRatio: viewModel.videoAspectRatio)
-                    _ = await openImmersiveSpace(id: "player-immersive-space")
-                    dismissWindow(id: "main-window")
+                    if appModel.isImmersiveSpacePresented {
+                        await dismissImmersiveSpace()
+                    } else {
+                        _ = await openImmersiveSpace(id: "player-immersive-space")
+                    }
                 }
             }
         }
@@ -85,10 +82,6 @@ struct PlayerView: View {
             viewModel.prepare()
         }
         .onDisappear {
-            guard appModel.immersivePlayer !== viewModel.player else {
-                return
-            }
-
             viewModel.handleDisappear()
             appModel.endPlayback(for: viewModel)
             Task {
@@ -103,10 +96,6 @@ struct PlayerView: View {
     // MARK: Helpers
 
     private func closePlayer() {
-        guard appModel.immersivePlayer !== viewModel.player else {
-            return
-        }
-
         viewModel.handleDisappear()
         appModel.endPlayback(for: viewModel)
         dismiss()
