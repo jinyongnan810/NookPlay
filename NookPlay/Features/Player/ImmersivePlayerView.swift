@@ -36,7 +36,6 @@ struct ImmersivePlayerView: View {
 
     @State private var showsControls = true
     @State private var hideControlsTask: Task<Void, Never>?
-    @State private var isPlaying = true
     @State private var sliderTime: Double = 0
     @State private var isScrubbing = false
     @State private var isSliderHovered = false
@@ -84,14 +83,6 @@ struct ImmersivePlayerView: View {
         }
         .onDisappear {
             hideControlsTask?.cancel()
-        }
-        .task(id: appModel.immersivePlayer) {
-            while !Task.isCancelled {
-                await MainActor.run {
-                    syncPlaybackState()
-                }
-                try? await Task.sleep(for: .milliseconds(200))
-            }
         }
         .onChange(of: scenePhase) { _, newPhase in
             appModel.activePlayerViewModel?.handleScenePhaseChange(newPhase)
@@ -143,7 +134,7 @@ struct ImmersivePlayerView: View {
                 buttonIcon(systemName: "gobackward.15", action: {
                     seekBy(delta: -15)
                 })
-                buttonIcon(systemName: isPlaying ? "pause.fill" : "play.fill", action: togglePlayback)
+                buttonIcon(systemName: isPlaybackActive ? "pause.fill" : "play.fill", action: togglePlayback)
                 buttonIcon(systemName: "goforward.15", action: {
                     seekBy(delta: 15)
                 })
@@ -216,36 +207,12 @@ struct ImmersivePlayerView: View {
             return
         }
 
-        if isPlaying {
+        if isPlaybackActive {
             player.pause()
         } else {
             player.play()
         }
-
-        syncPlaybackState()
         showControlsTemporarily()
-    }
-
-    private func syncPlaybackState() {
-        guard let player = appModel.immersivePlayer else {
-            isPlaying = false
-            sliderTime = 0
-            return
-        }
-
-        isPlaying = player.rate > 0
-
-        guard let viewModel = appModel.activePlayerViewModel else {
-            let playerTime = player.currentTime().seconds
-            if playerTime.isFinite, !isScrubbing {
-                sliderTime = playerTime
-            }
-            return
-        }
-
-        if !isScrubbing {
-            sliderTime = viewModel.currentTime
-        }
     }
 
     private func toggleControlsVisibility() {
@@ -297,6 +264,10 @@ struct ImmersivePlayerView: View {
         }
 
         return max(duration, 0)
+    }
+
+    private var isPlaybackActive: Bool {
+        appModel.activePlayerViewModel?.isPlaying ?? false
     }
 
     private var sliderUpperBound: Double {

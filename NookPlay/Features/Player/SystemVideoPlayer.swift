@@ -20,21 +20,27 @@ struct SystemVideoPlayer: UIViewControllerRepresentable {
     let player: AVPlayer
     /// The gravity used to display video content inside the player view controller.
     let videoGravity: AVLayerVideoGravity
+    /// Called when the system player is about to end fullscreen presentation.
+    let onWillEndFullScreenPresentation: (() -> Void)?
 
     // MARK: UIViewControllerRepresentable
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(onWillEndFullScreenPresentation: onWillEndFullScreenPresentation)
+    }
 
     /// Creates the underlying `AVPlayerViewController`.
     ///
     /// - Parameter context: The representable context from SwiftUI.
     /// - Returns: A configured system player view controller.
-    func makeUIViewController(context _: Context) -> AVPlayerViewController {
+    func makeUIViewController(context: Context) -> AVPlayerViewController {
         let controller = AVPlayerViewController()
         controller.player = player
-
         controller.showsPlaybackControls = true
         controller.videoGravity = videoGravity
         controller.view.backgroundColor = .black
         controller.updatesNowPlayingInfoCenter = true
+        controller.delegate = context.coordinator
         return controller
     }
 
@@ -50,6 +56,29 @@ struct SystemVideoPlayer: UIViewControllerRepresentable {
 
         if controller.videoGravity != videoGravity {
             controller.videoGravity = videoGravity
+        }
+    }
+}
+
+extension SystemVideoPlayer {
+    final class Coordinator: NSObject, AVPlayerViewControllerDelegate {
+        private let onWillEndFullScreenPresentation: (() -> Void)?
+
+        init(onWillEndFullScreenPresentation: (() -> Void)?) {
+            self.onWillEndFullScreenPresentation = onWillEndFullScreenPresentation
+        }
+
+        func playerViewController(
+            _: AVPlayerViewController,
+            willEndFullScreenPresentationWithAnimationCoordinator coordinator: any UIViewControllerTransitionCoordinator
+        ) {
+            coordinator.animate(alongsideTransition: nil) { [onWillEndFullScreenPresentation] context in
+                guard !context.isCancelled else {
+                    return
+                }
+
+                onWillEndFullScreenPresentation?()
+            }
         }
     }
 }

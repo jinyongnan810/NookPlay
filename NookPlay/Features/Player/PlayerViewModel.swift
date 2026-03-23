@@ -54,6 +54,9 @@ final class PlayerViewModel: Identifiable {
     /// Notification token for playback completion events.
     @ObservationIgnored
     private var endObserver: NSObjectProtocol?
+    /// KVO observation for the player's time control status.
+    @ObservationIgnored
+    private var timeControlStatusObservation: NSKeyValueObservation?
 
     /// Indicates whether the initial resume seek has already been attempted.
     private var hasAppliedInitialResume = false
@@ -75,7 +78,11 @@ final class PlayerViewModel: Identifiable {
     ) {
         self.mediaSource = mediaSource
         self.progressStore = progressStore
-        player = AVPlayer(url: mediaSource.streamURL)
+
+        let asset = AVURLAsset(url: mediaSource.streamURL)
+        let item = AVPlayerItem(asset: asset)
+        player = AVPlayer(playerItem: item)
+        player.automaticallyWaitsToMinimizeStalling = true
     }
 
     // MARK: Lifecycle
@@ -105,20 +112,17 @@ final class PlayerViewModel: Identifiable {
         observePlayer()
         observeCompletion()
         player.play()
-        isPlaying = true
     }
 
     /// Toggles playback between playing and paused states.
     func togglePlayback() {
         if isPlaying {
             player.pause()
-            isPlaying = false
             Task {
                 await saveProgress(force: true)
             }
         } else {
             player.play()
-            isPlaying = true
         }
     }
 
@@ -134,7 +138,6 @@ final class PlayerViewModel: Identifiable {
     /// Handles cleanup when the player screen disappears.
     func handleDisappear() {
         player.pause()
-        isPlaying = false
 
         Task {
             await saveProgress(force: true)
@@ -158,6 +161,13 @@ final class PlayerViewModel: Identifiable {
 
     /// Observes the player item for readiness, presentation metadata, and time updates.
     private func observePlayer() {
+        timeControlStatusObservation = player.observe(\.timeControlStatus, options: [.initial, .new]) { [weak self] player, _ in
+            let isPlaying = player.timeControlStatus == .playing
+            Task { @MainActor [weak self, isPlaying] in
+                self?.isPlaying = isPlaying
+            }
+        }
+
         statusObservation = player.currentItem?.observe(\.status, options: [.initial, .new]) { [weak self] item, _ in
             Task { @MainActor in
                 guard let self else {
@@ -217,8 +227,8 @@ final class PlayerViewModel: Identifiable {
                     return
                 }
 
-                self.isPlaying = false
                 self.lastSavedProgressTime = 0
+                self.currentTime = self.duration
                 await self.progressStore.removeResumeEntry(for: self.mediaSource.playbackID)
             }
         }

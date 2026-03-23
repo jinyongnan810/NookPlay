@@ -17,6 +17,8 @@ struct PlayerView: View {
 
     /// Shared app state used for immersive playback handoff.
     @Environment(AppModel.self) private var appModel
+    /// Dismiss action for the fullscreen player presentation.
+    @Environment(\.dismiss) private var dismiss
     /// Window dismissal action used to hide the main app window during immersive playback.
     @Environment(\.dismissWindow) private var dismissWindow
     /// System action used to open the app's immersive playback scene.
@@ -62,7 +64,11 @@ struct PlayerView: View {
                 Color.black
                     .ignoresSafeArea()
             } else {
-                SystemVideoPlayer(player: viewModel.player, videoGravity: .resizeAspect)
+                SystemVideoPlayer(
+                    player: viewModel.player,
+                    videoGravity: .resizeAspect,
+                    onWillEndFullScreenPresentation: closePlayer
+                )
                     .ignoresSafeArea()
             }
         }
@@ -92,6 +98,18 @@ struct PlayerView: View {
         .onChange(of: scenePhase) { _, newPhase in
             viewModel.handleScenePhaseChange(newPhase)
         }
+    }
+
+    // MARK: Helpers
+
+    private func closePlayer() {
+        guard appModel.immersivePlayer !== viewModel.player else {
+            return
+        }
+
+        viewModel.handleDisappear()
+        appModel.endPlayback(for: viewModel)
+        dismiss()
     }
 }
 
