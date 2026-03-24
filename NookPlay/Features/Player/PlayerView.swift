@@ -64,7 +64,7 @@ struct PlayerView: View {
                     videoGravity: .resizeAspect,
                     onWillEndFullScreenPresentation: closePlayer
                 )
-                    .ignoresSafeArea()
+                .ignoresSafeArea()
             }
         }
         .immersiveEnvironmentPicker {

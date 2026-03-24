@@ -22,10 +22,9 @@ struct ImmersivePlayerView: View {
 
     var body: some View {
         RealityView { content in
-            if content.entities.first(where: { $0.name == Self.environmentRootName }) == nil {
-                let environmentRoot = await makeEvironment()
-                environmentRoot.name = Self.environmentRootName
-                content.add(environmentRoot)
+            if let scene = try? await Entity(named: "Scene", in: realityKitContentBundle) {
+                print("added scene")
+                content.add(scene)
             }
         }
         .onAppear {

@@ -18,8 +18,13 @@ def Xform "Root"
         double3 xformOp:translate = (0, 0, 0)
         uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
 
-        def Xform "Player"
+        def Xform "Player" (
+            prepend apiSchemas = ["MaterialBindingAPI"]
+        )
         {
+            rel material:binding = None (
+                bindMaterialAs = "weakerThanDescendants"
+            )
             float3 xformOp:scale = (1, 1, 1)
             float3 xformOp:translate = (0, 8, -22)
             uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
@@ -42,16 +47,45 @@ def Xform "Root"
     }
 
     def "Ground" (
+        prepend apiSchemas = ["MaterialBindingAPI"]
         references = @Ground.usda@
     )
     {
-        reorder nameChildren = ["Mesh", "Material", "Material_1"]
+        reorder nameChildren = ["Mesh", "Material", "NaturalCork"]
+        rel material:binding = </Root/Ground/Material> (
+            bindMaterialAs = "weakerThanDescendants"
+        )
         quatf xformOp:orient = (1, 0, 0, 0)
         float3 xformOp:scale = (6, 6, 6)
         float3 xformOp:translate = (0, 0, 0)
 
         over "Material"
         {
+            token outputs:mtlx:surface.connect = </Root/Ground/Material/PreviewSurface.outputs:out>
+            token outputs:surface.connect = </Root/Ground/Material/UsdPreviewSurface.outputs:surface>
+
+            over "PreviewSurface" (
+                active = true
+            )
+            {
+            }
+
+            def Shader "UsdPreviewSurface" (
+                active = false
+            )
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                token outputs:surface
+            }
+        }
+
+        over "Mesh" (
+            prepend apiSchemas = ["MaterialBindingAPI"]
+        )
+        {
+            rel material:binding = </Root/Ground/Material> (
+                bindMaterialAs = "weakerThanDescendants"
+            )
         }
     }
 }
