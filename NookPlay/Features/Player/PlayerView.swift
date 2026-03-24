@@ -68,7 +68,7 @@ struct PlayerView: View {
             }
         }
         .immersiveEnvironmentPicker {
-            Button(appModel.isImmersiveSpacePresented ? "Close Environment" : "Open Environment", systemImage: "vision.pro") {
+            Button(appModel.isImmersiveSpacePresented ? "Close Environment" : "Void Space", systemImage: "vision.pro") {
                 Task {
                     if appModel.isImmersiveSpacePresented {
                         await dismissImmersiveSpace()

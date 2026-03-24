@@ -25,6 +25,10 @@ struct ImmersivePlayerView: View {
             if let scene = try? await Entity(named: "Scene", in: realityKitContentBundle) {
                 print("added scene")
                 content.add(scene)
+//                guard let ceiling = scene.findEntity(named: "Ceiling") else {
+//                    fatalError()
+//                }
+//                ceiling.position = [0, 10, 0]
             }
         }
         .onAppear {
