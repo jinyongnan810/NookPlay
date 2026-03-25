@@ -31,7 +31,7 @@ def Xform "Root"
 
             def RealityKitComponent "CustomDockingRegion" (
                 customData = {
-                    asset previewVideo = @../../../../../../../../../../Volumes/Extreme SSD/music/Wild Lift - Utada Hikaru.mp4@
+                    asset previewVideo = @../../../../../../../../Desktop/IMG_1954.mp4@
                 }
             )
             {
@@ -51,8 +51,8 @@ def Xform "Root"
         references = @Ground.usda@
     )
     {
-        reorder nameChildren = ["Mesh", "Material", "NaturalCork"]
-        rel material:binding = </Root/Ground/Material> (
+        reorder nameChildren = ["Mesh", "Maple_Plywood", "Material"]
+        rel material:binding = None (
             bindMaterialAs = "weakerThanDescendants"
         )
         quatf xformOp:orient = (1, 0, 0, 0)
@@ -73,7 +73,7 @@ def Xform "Root"
                 float3 inputs:normal = (0, 0, 1)
                 float inputs:opacity = 0.3
                 float inputs:roughness = 1
-                int ui:nodegraph:node:stackingOrder = 268
+                int ui:nodegraph:node:stackingOrder = 457
             }
 
             def Shader "UsdPreviewSurface" (
@@ -86,18 +86,63 @@ def Xform "Root"
 
             over "Separate4"
             {
-                int ui:nodegraph:node:stackingOrder = 215
+                int ui:nodegraph:node:stackingOrder = 457
             }
 
             over "Combine3"
             {
-                int ui:nodegraph:node:stackingOrder = 216
+                int ui:nodegraph:node:stackingOrder = 457
             }
 
             over "Reflection_Diffuse"
             {
                 asset inputs:attenuationMap = @DefaultAttenuationMap.exr@
-                int ui:nodegraph:node:stackingOrder = 218
+                int ui:nodegraph:node:stackingOrder = 457
+            }
+
+            over "ViewDirection"
+            {
+                int ui:nodegraph:node:stackingOrder = 457
+            }
+
+            over "Reflection_Specular"
+            {
+                float3 inputs:normal.connect = </Root/Ground/Material/Normal.outputs:out>
+                float3 inputs:reflection_origin = (0, 0, 0)
+                int ui:nodegraph:node:stackingOrder = 457
+            }
+
+            def Shader "Normal"
+            {
+                uniform token info:id = "ND_normal_vector3"
+                float3 outputs:out
+                float2 ui:nodegraph:node:pos = (-23.586395, 455.52164)
+                int ui:nodegraph:node:stackingOrder = 457
+            }
+
+            over "Swizzle"
+            {
+                int ui:nodegraph:node:stackingOrder = 457
+            }
+
+            over "Add"
+            {
+                int ui:nodegraph:node:stackingOrder = 457
+            }
+
+            over "Read_EmissionUV"
+            {
+                int ui:nodegraph:node:stackingOrder = 457
+            }
+
+            over "Read_AttenuationUV"
+            {
+                int ui:nodegraph:node:stackingOrder = 457
+            }
+
+            over "Mix_1"
+            {
+                int ui:nodegraph:node:stackingOrder = 457
             }
         }
 
@@ -105,10 +150,238 @@ def Xform "Root"
             prepend apiSchemas = ["MaterialBindingAPI"]
         )
         {
-            rel material:binding = </Root/Ground/Material> (
+            rel material:binding = </Root/Ground/Maple_Plywood> (
                 bindMaterialAs = "weakerThanDescendants"
             )
             float3 xformOp:scale = (1, 1, 1)
+        }
+
+        def "Maple_Plywood" (
+            active = true
+            references = @MaplePlywood.usdz@
+        )
+        {
+            color3f inputs:Basecolor_Tint = (0.7176471, 0.5411765, 0.4) (
+                colorSpace = "srgb_texture"
+                customData = {
+                    dictionary realitykit = {
+                        float2 positionInSubgraph = (-1165.0773, 1617.6396)
+                        float2 sizeInSubgraph = (160.5, 53)
+                        int stackingOrderInSubgraph = 5043
+                    }
+                }
+            )
+            float2 inputs:UV_Scale = (30, 30) (
+                customData = {
+                    dictionary realitykit = {
+                        float2 positionInSubgraph = (-1833.5234, 1902.0177)
+                        float2 sizeInSubgraph = (138.5, 53)
+                        int stackingOrderInSubgraph = 4960
+                    }
+                }
+            )
+            token outputs:mtlx:surface.connect = </Root/Ground/Maple_Plywood/PreviewSurface.outputs:out>
+            float2 ui:nodegraph:realitykit:subgraphOutputs:pos = (600.7938, 1950.82)
+            int ui:nodegraph:realitykit:subgraphOutputs:stackingOrder = 5046
+            quatf xformOp:orient = (1, 0, 0, 0)
+            float3 xformOp:scale = (1, 1, 1)
+            float3 xformOp:translate = (0, 0, 0)
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+
+            over "PreviewSurface"
+            {
+                float inputs:clearcoat
+                float inputs:clearcoatRoughness
+                color3f inputs:emissiveColor.connect = </Root/Ground/Maple_Plywood/Add.outputs:out>
+                float inputs:ior
+                float inputs:occlusion
+                float inputs:opacityThreshold
+                float2 ui:nodegraph:node:pos = (55.119686, 2015.6317)
+                int ui:nodegraph:node:stackingOrder = 5048
+                string[] ui:nodegraph:realitykit:node:attributesShowingChildren = ["Advanced"]
+            }
+
+            over "Metallic"
+            {
+                float2 ui:nodegraph:node:pos = (-1377.0446, 2145.4202)
+                int ui:nodegraph:node:stackingOrder = 4960
+            }
+
+            over "Normal"
+            {
+                float3 inputs:default = (0, -1.51, 0)
+                float2 ui:nodegraph:node:pos = (-1374.2089, 2393.2905)
+                int ui:nodegraph:node:stackingOrder = 4960
+            }
+
+            over "add"
+            {
+                float2 ui:nodegraph:node:pos = (-1078.7852, 2369.1865)
+                int ui:nodegraph:node:stackingOrder = 4960
+            }
+
+            over "multiply"
+            {
+                float2 ui:nodegraph:node:pos = (-1166.5573, 2371.3027)
+                int ui:nodegraph:node:stackingOrder = 4960
+            }
+
+            over "Roughness"
+            {
+                float2 ui:nodegraph:node:pos = (-1379.8281, 1893.3356)
+                int ui:nodegraph:node:stackingOrder = 4960
+            }
+
+            over "Swizzle_1"
+            {
+                float2 ui:nodegraph:node:pos = (-1161.4856, 1706.4401)
+                int ui:nodegraph:node:stackingOrder = 4960
+            }
+
+            over "Multiply_1"
+            {
+                float2 ui:nodegraph:node:pos = (-979.6199, 1661.5697)
+                int ui:nodegraph:node:stackingOrder = 4960
+            }
+
+            over "Mix"
+            {
+                float2 ui:nodegraph:node:pos = (-818.964, 1753.5231)
+                int ui:nodegraph:node:stackingOrder = 5038
+                string[] ui:nodegraph:realitykit:node:attributesShowingChildren = ["outputs:out"]
+            }
+
+            over "Swizzle"
+            {
+                float2 ui:nodegraph:node:pos = (-1161.5098, 1779.9844)
+                int ui:nodegraph:node:stackingOrder = 4960
+            }
+
+            over "BaseColor"
+            {
+                float2 ui:nodegraph:node:pos = (-1382.4172, 1642.5991)
+                int ui:nodegraph:node:stackingOrder = 4969
+                string[] ui:nodegraph:realitykit:node:attributesShowingChildren = ["inputs:texcoord"]
+            }
+
+            over "Dot"
+            {
+                float2 ui:nodegraph:node:pos = (-1648.52, 1901.546)
+                int ui:nodegraph:node:stackingOrder = 4960
+            }
+
+            def Shader "Mix_1" (
+                prepend references = @Ground.usda@</Ground/Material/Mix_1>
+            )
+            {
+                uniform token info:id = "ND_mix_color3"
+                color3f inputs:fg.connect = </Root/Ground/Maple_Plywood/Combine3.outputs:out>
+                float inputs:mix.connect = </Root/Ground/Maple_Plywood/Separate4.outputs:outa>
+                float2 ui:nodegraph:node:pos = (-470.21872, 3032.0742)
+                int ui:nodegraph:node:stackingOrder = 5092
+            }
+
+            def Shader "Read_AttenuationUV" (
+                prepend references = @Ground.usda@</Ground/Material/Read_AttenuationUV>
+            )
+            {
+                uniform token info:id = "ND_UsdPrimvarReader_vector2"
+                float2 ui:nodegraph:node:pos = (-1383.0039, 2807.7188)
+                int ui:nodegraph:node:stackingOrder = 5092
+            }
+
+            def Shader "Reflection_Specular" (
+                prepend references = @Ground.usda@</Ground/Material/Reflection_Specular>
+            )
+            {
+                uniform token info:id = "ND_realitykit_light_spill_specular"
+                float3 inputs:normal.connect = </Root/Ground/Maple_Plywood/Normal_1.outputs:out>
+                float3 inputs:reflection_origin = (0, 0, 0)
+                float3 inputs:unreflected_direction.connect = </Root/Ground/Maple_Plywood/ViewDirection.outputs:out>
+                float2 ui:nodegraph:node:pos = (-1100.6094, 2950.543)
+                int ui:nodegraph:node:stackingOrder = 5092
+            }
+
+            def Shader "Combine3" (
+                prepend references = @Ground.usda@</Ground/Material/Combine3>
+            )
+            {
+                uniform token info:id = "ND_combine3_color3"
+                float inputs:in1.connect = </Root/Ground/Maple_Plywood/Separate4.outputs:outr>
+                float inputs:in2.connect = </Root/Ground/Maple_Plywood/Separate4.outputs:outg>
+                float inputs:in3.connect = </Root/Ground/Maple_Plywood/Separate4.outputs:outb>
+                float2 ui:nodegraph:node:pos = (-656.5, 3029.043)
+                int ui:nodegraph:node:stackingOrder = 5092
+            }
+
+            def Shader "Add" (
+                prepend references = @Ground.usda@</Ground/Material/Add>
+            )
+            {
+                uniform token info:id = "ND_add_color3"
+                color3f inputs:in1.connect = </Root/Ground/Maple_Plywood/Swizzle_2.outputs:out>
+                color3f inputs:in2.connect = </Root/Ground/Maple_Plywood/Mix_1.outputs:out>
+                float2 ui:nodegraph:node:pos = (-362.6515, 2369.299)
+                int ui:nodegraph:node:stackingOrder = 5094
+            }
+
+            def Shader "Swizzle_2" (
+                prepend references = @Ground.usda@</Ground/Material/Swizzle>
+            )
+            {
+                uniform token info:id = "ND_swizzle_color4_color3"
+                color4f inputs:in.connect = </Root/Ground/Maple_Plywood/Reflection_Diffuse.outputs:out>
+                float2 ui:nodegraph:node:pos = (-804.6211, 2771.7031)
+                int ui:nodegraph:node:stackingOrder = 5092
+            }
+
+            def Shader "Read_EmissionUV" (
+                prepend references = @Ground.usda@</Ground/Material/Read_EmissionUV>
+            )
+            {
+                uniform token info:id = "ND_UsdPrimvarReader_vector2"
+                float2 ui:nodegraph:node:pos = (-1379.6875, 2665.3047)
+                int ui:nodegraph:node:stackingOrder = 5092
+            }
+
+            def Shader "Normal_1"
+            {
+                uniform token info:id = "ND_normal_vector3"
+                float3 outputs:out
+                float2 ui:nodegraph:node:pos = (-1428.555, 3025.5022)
+                int ui:nodegraph:node:stackingOrder = 5092
+            }
+
+            def Shader "ViewDirection" (
+                prepend references = @Ground.usda@</Ground/Material/ViewDirection>
+            )
+            {
+                uniform token info:id = "ND_realitykit_viewdirection_vector3"
+                float2 ui:nodegraph:node:pos = (-1401.0781, 2940.6367)
+                int ui:nodegraph:node:stackingOrder = 5092
+            }
+
+            def Shader "Separate4" (
+                prepend references = @Ground.usda@</Ground/Material/Separate4>
+            )
+            {
+                uniform token info:id = "ND_separate4_color4"
+                color4f inputs:in.connect = </Root/Ground/Maple_Plywood/Reflection_Specular.outputs:out>
+                float2 ui:nodegraph:node:pos = (-834.65625, 3038.0156)
+                int ui:nodegraph:node:stackingOrder = 5092
+            }
+
+            def Shader "Reflection_Diffuse" (
+                prepend references = @Ground.usda@</Ground/Material/Reflection_Diffuse>
+            )
+            {
+                uniform token info:id = "ND_realitykit_light_spill_diffuse"
+                asset inputs:attenuationMap = @DefaultAttenuationMap.exr@
+                float2 inputs:attenuationUV.connect = </Root/Ground/Maple_Plywood/Read_AttenuationUV.outputs:out>
+                float2 inputs:emitterUV.connect = </Root/Ground/Maple_Plywood/Read_EmissionUV.outputs:out>
+                float2 ui:nodegraph:node:pos = (-1126.4844, 2708.3281)
+                int ui:nodegraph:node:stackingOrder = 5096
+            }
         }
     }
 }

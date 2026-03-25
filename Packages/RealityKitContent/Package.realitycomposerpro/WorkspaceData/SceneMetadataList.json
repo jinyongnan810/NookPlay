@@ -8,8 +8,7 @@
     "objectMetadataList" : [
       [
         "0A9B4653-B11E-4D6A-850E-C6FCB621626C",
-        "Root",
-        "GridMaterial"
+        "Root"
       ],
       {
         "isExpanded" : true,
@@ -17,7 +16,8 @@
       },
       [
         "0A9B4653-B11E-4D6A-850E-C6FCB621626C",
-        "Root"
+        "Root",
+        "GridMaterial"
       ],
       {
         "isExpanded" : true,
@@ -43,8 +43,17 @@
     "objectMetadataList" : [
       [
         "26DBAE76-5DD8-47B6-A085-1B4ADA111097",
+        "Root"
+      ],
+      {
+        "isExpanded" : true,
+        "isLocked" : false
+      },
+      [
+        "26DBAE76-5DD8-47B6-A085-1B4ADA111097",
         "Root",
-        "SkyDome"
+        "SkyDome",
+        "Grid"
       ],
       {
         "disallowsFraming" : true,
@@ -54,15 +63,8 @@
       [
         "26DBAE76-5DD8-47B6-A085-1B4ADA111097",
         "Root",
-        "Video_Dock"
-      ],
-      {
-        "isExpanded" : true,
-        "isLocked" : false
-      },
-      [
-        "26DBAE76-5DD8-47B6-A085-1B4ADA111097",
-        "Root"
+        "SkyDome",
+        "Looks"
       ],
       {
         "isExpanded" : true,
@@ -84,25 +86,24 @@
         "Ground"
       ],
       {
+        "disallowsFraming" : false,
         "isExpanded" : true,
         "isLocked" : false
       },
       [
         "26DBAE76-5DD8-47B6-A085-1B4ADA111097",
         "Root",
-        "SkyDome",
-        "Grid"
+        "Video_Dock"
       ],
       {
-        "disallowsFraming" : true,
-        "isExpanded" : false,
+        "isExpanded" : true,
         "isLocked" : false
       },
       [
         "26DBAE76-5DD8-47B6-A085-1B4ADA111097",
         "Root",
-        "SkyDome",
-        "Ground_01"
+        "Ground",
+        "Mesh"
       ],
       {
         "disallowsFraming" : false,
@@ -123,10 +124,31 @@
         "26DBAE76-5DD8-47B6-A085-1B4ADA111097",
         "Root",
         "SkyDome",
-        "Looks"
+        "Ground_01"
+      ],
+      {
+        "disallowsFraming" : false,
+        "isExpanded" : false,
+        "isLocked" : false
+      },
+      [
+        "26DBAE76-5DD8-47B6-A085-1B4ADA111097",
+        "Root",
+        "Ground",
+        "Maple_Plywood"
       ],
       {
         "isExpanded" : true,
+        "isLocked" : false
+      },
+      [
+        "26DBAE76-5DD8-47B6-A085-1B4ADA111097",
+        "Root",
+        "SkyDome"
+      ],
+      {
+        "disallowsFraming" : true,
+        "isExpanded" : false,
         "isLocked" : false
       }
     ]

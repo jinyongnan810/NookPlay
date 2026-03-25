@@ -84,8 +84,10 @@ struct PlayerView: View {
         .onDisappear {
             viewModel.handleDisappear()
             appModel.endPlayback(for: viewModel)
-            Task {
-                await dismissImmersiveSpace()
+            if appModel.isImmersiveSpacePresented {
+                Task {
+                    await dismissImmersiveSpace()
+                }
             }
         }
         .onChange(of: scenePhase) { _, newPhase in

@@ -79,8 +79,9 @@ final class PlayerViewModel: Identifiable {
         self.mediaSource = mediaSource
         self.progressStore = progressStore
 
-        let asset = AVURLAsset(url: mediaSource.streamURL)
-        let item = AVPlayerItem(asset: asset)
+//        let asset = AVURLAsset(url: mediaSource.streamURL)
+//        let item = AVPlayerItem(asset: asset)
+        let item = AVPlayerItem(url: mediaSource.streamURL)
         player = AVPlayer(playerItem: item)
         player.automaticallyWaitsToMinimizeStalling = true
     }
@@ -176,6 +177,8 @@ final class PlayerViewModel: Identifiable {
 
                 switch item.status {
                 case .readyToPlay:
+                    await self.configureVideoCompositionIfNeeded(for: item)
+                    await self.debugVideoMetadata(item)
                     await self.updateDuration(using: item)
                     self.updateAspectRatio(using: item.presentationSize)
                     await self.restoreResumePositionIfNeeded()
@@ -332,5 +335,120 @@ final class PlayerViewModel: Identifiable {
         )
         await progressStore.saveResumeEntry(entry)
         lastSavedProgressTime = currentSeconds
+    }
+
+    private func debugVideoMetadata(_ item: AVPlayerItem) async {
+        let asset = item.asset
+
+        do {
+            let tracks = try await asset.loadTracks(withMediaType: .video)
+            guard let track = tracks.first else {
+                print("=== VIDEO DEBUG ===")
+                print("No video track")
+                return
+            }
+
+            let naturalSize = try await track.load(.naturalSize)
+            let preferredTransform = try await track.load(.preferredTransform)
+            let presentationSize = item.presentationSize
+
+            let transformed = naturalSize.applying(preferredTransform)
+
+            print("=== VIDEO DEBUG ===")
+            print("url:", (asset as? AVURLAsset)?.url.absoluteString ?? "n/a")
+            print("naturalSize:", naturalSize)
+            print("preferredTransform:", preferredTransform)
+            print("presentationSize:", presentationSize)
+            print("transformedSize(abs):", CGSize(
+                width: abs(transformed.width),
+                height: abs(transformed.height)
+            ))
+            print("videoAspectRatio:", videoAspectRatio)
+        } catch {
+            print("=== VIDEO DEBUG ===")
+            print("Failed to load video metadata:", error)
+        }
+    }
+
+    private func configureVideoCompositionIfNeeded(for item: AVPlayerItem) async {
+        guard item.videoComposition == nil else {
+            return
+        }
+
+        do {
+            item.videoComposition = try await makeVideoComposition(for: item.asset)
+        } catch {
+            print("=== VIDEO DEBUG ===")
+            print("Failed to configure video composition:", error)
+        }
+    }
+
+    private func makeVideoComposition(for asset: AVAsset) async throws -> AVVideoComposition? {
+        let tracks = try await asset.loadTracks(withMediaType: .video)
+
+        guard let sourceTrack = tracks.first else {
+            return nil
+        }
+
+        let preferredTransform = try await sourceTrack.load(.preferredTransform)
+        let naturalSize = try await sourceTrack.load(.naturalSize)
+        let duration = try await asset.load(.duration)
+
+        // If already upright, keep the simple path.
+        if preferredTransform == .identity {
+            return nil
+        }
+
+        let composition = AVMutableComposition()
+        guard let compTrack = composition.addMutableTrack(
+            withMediaType: .video,
+            preferredTrackID: kCMPersistentTrackID_Invalid
+        ) else {
+            return nil
+        }
+
+        try compTrack.insertTimeRange(
+            CMTimeRange(start: .zero, duration: duration),
+            of: sourceTrack,
+            at: .zero
+        )
+
+        if let audioTrack = try await asset.loadTracks(withMediaType: .audio).first,
+           let compAudio = composition.addMutableTrack(
+               withMediaType: .audio,
+               preferredTrackID: kCMPersistentTrackID_Invalid
+           )
+        {
+            try? compAudio.insertTimeRange(
+                CMTimeRange(start: .zero, duration: duration),
+                of: audioTrack,
+                at: .zero
+            )
+        }
+
+        var layerConfiguration = AVVideoCompositionLayerInstruction.Configuration(trackID: compTrack.trackID)
+        layerConfiguration.setTransform(preferredTransform, at: .zero)
+        let layerInstruction = AVVideoCompositionLayerInstruction(configuration: layerConfiguration)
+
+        let instructionConfiguration = AVVideoCompositionInstruction.Configuration(
+            backgroundColor: nil,
+            enablePostProcessing: false,
+            layerInstructions: [layerInstruction],
+            requiredSourceSampleDataTrackIDs: [],
+            timeRange: CMTimeRange(start: .zero, duration: duration)
+        )
+        let instruction = AVVideoCompositionInstruction(configuration: instructionConfiguration)
+
+        var configuration = AVVideoComposition.Configuration()
+        configuration.instructions = [instruction]
+        configuration.frameDuration = CMTime(value: 1, timescale: 30)
+
+        let transformedSize = naturalSize.applying(preferredTransform)
+        configuration.renderSize = CGSize(
+            width: abs(transformedSize.width),
+            height: abs(transformedSize.height)
+        )
+
+        return AVVideoComposition(configuration: configuration)
     }
 }
