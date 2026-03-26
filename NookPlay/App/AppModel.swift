@@ -39,6 +39,14 @@ final class AppModel {
         isPlayerPresented = true
     }
 
+    /// Starts a new shared playback session using an already-prepared player view model.
+    ///
+    /// - Parameter viewModel: The playback session to present.
+    func presentPlayer(_ viewModel: PlayerViewModel) {
+        activePlayerViewModel = viewModel
+        isPlayerPresented = true
+    }
+
     /// Updates app state to match the immersive space visibility.
     ///
     /// - Parameter isPresented: Whether the immersive playback environment is currently open.

@@ -31,7 +31,7 @@ def Xform "Root"
 
             def RealityKitComponent "CustomDockingRegion" (
                 customData = {
-                    asset previewVideo = @../../../../../../../../Desktop/IMG_1954.mp4@
+                    asset previewVideo = @@
                 }
             )
             {

@@ -65,6 +65,12 @@ struct PlayerView: View {
                     onWillEndFullScreenPresentation: closePlayer
                 )
                 .ignoresSafeArea()
+
+                if viewModel.isPreparing {
+                    ProgressView("Preparing Video…")
+                        .tint(.white)
+                        .foregroundStyle(.white)
+                }
             }
         }
         .immersiveEnvironmentPicker {
@@ -79,7 +85,7 @@ struct PlayerView: View {
             }
         }
         .task {
-            viewModel.prepare()
+            await viewModel.prepare()
         }
         .onDisappear {
             viewModel.handleDisappear()

@@ -233,13 +233,18 @@ struct LocalVideoPickerView: View {
                     let media = try await MainActor.run {
                         try accessManager.importPlayableMedia(from: url)
                     }
+                    let preparedPlayerItem = await PlayerViewModel.makePreparedPlayerItem(for: media.asMediaSource)
 
                     guard !Task.isCancelled else {
                         return
                     }
 
                     await MainActor.run {
-                        appModel.presentPlayer(for: media.asMediaSource)
+                        let viewModel = PlayerViewModel(
+                            mediaSource: media.asMediaSource,
+                            preparedPlayerItem: preparedPlayerItem
+                        )
+                        appModel.presentPlayer(viewModel)
                         finishImport()
                     }
                 } catch {
@@ -291,13 +296,18 @@ struct LocalVideoPickerView: View {
                 playbackIDRawValue: preparedMovie.playbackIDRawValue,
                 playbackLifetime: preparedMovie.playbackLifetime
             )
+            let preparedPlayerItem = await PlayerViewModel.makePreparedPlayerItem(for: media.asMediaSource)
 
             guard !Task.isCancelled else {
                 finishImport()
                 return
             }
 
-            appModel.presentPlayer(for: media.asMediaSource)
+            let viewModel = PlayerViewModel(
+                mediaSource: media.asMediaSource,
+                preparedPlayerItem: preparedPlayerItem
+            )
+            appModel.presentPlayer(viewModel)
             finishImport()
         } catch {
             guard !isImportCancelled(error) else {

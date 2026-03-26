@@ -27,6 +27,8 @@ final class PlayerViewModel: Identifiable {
     private(set) var duration: Double = 0
     /// Indicates whether the player is currently playing.
     private(set) var isPlaying = false
+    /// Indicates whether initial player preparation work is still running.
+    private(set) var isPreparing = false
     /// A user-facing playback error, if one occurred.
     private(set) var errorMessage: String?
     /// The aspect ratio of the presented video content.
@@ -57,6 +59,9 @@ final class PlayerViewModel: Identifiable {
     /// KVO observation for the player's time control status.
     @ObservationIgnored
     private var timeControlStatusObservation: NSKeyValueObservation?
+    /// A player item that was fully prepared before the player screen was presented.
+    @ObservationIgnored
+    private var preparedPlayerItem: AVPlayerItem?
 
     /// Indicates whether the initial resume seek has already been attempted.
     private var hasAppliedInitialResume = false
@@ -74,15 +79,14 @@ final class PlayerViewModel: Identifiable {
     ///   - progressStore: The persistence store for resume data.
     init(
         mediaSource: AnyPlayableMediaSource,
+        preparedPlayerItem: AVPlayerItem? = nil,
         progressStore: PlaybackProgressStore = PlaybackProgressStore()
     ) {
         self.mediaSource = mediaSource
+        self.preparedPlayerItem = preparedPlayerItem
         self.progressStore = progressStore
 
-//        let asset = AVURLAsset(url: mediaSource.streamURL)
-//        let item = AVPlayerItem(asset: asset)
-        let item = AVPlayerItem(url: mediaSource.streamURL)
-        player = AVPlayer(playerItem: item)
+        player = AVPlayer()
         player.automaticallyWaitsToMinimizeStalling = true
     }
 
@@ -102,7 +106,17 @@ final class PlayerViewModel: Identifiable {
     // MARK: Public Actions
 
     /// Prepares the player for presentation and starts playback.
-    func prepare() {
+    ///
+    /// This is the point where the view model performs the expensive one-time setup
+    /// for the current `AVPlayerItem`. That includes waiting for the item to become
+    /// ready, attaching any transform-correcting `AVVideoComposition`, loading basic
+    /// playback metadata, and restoring resume position.
+    ///
+    /// The composition graph created during this phase is retained by the player item
+    /// and player while playback is active. It is not exported to disk. Once the
+    /// player view model and its `AVPlayerItem` are released, ARC can release the
+    /// composition objects as well.
+    func prepare() async {
         guard !hasPreparedPlayer else {
             player.play()
             isPlaying = true
@@ -110,9 +124,32 @@ final class PlayerViewModel: Identifiable {
         }
 
         hasPreparedPlayer = true
-        observePlayer()
-        observeCompletion()
-        player.play()
+        isPreparing = true
+
+        defer {
+            isPreparing = false
+        }
+
+        do {
+            let item = try await makePlayerItemIfNeeded()
+            player.replaceCurrentItem(with: item)
+            observePlayer()
+            observeCompletion()
+
+            let readyItem = try await waitUntilItemReady(item)
+            await debugVideoMetadata(readyItem)
+            await updateDuration(using: readyItem)
+            updateAspectRatio(using: readyItem.presentationSize)
+            await restoreResumePositionIfNeeded()
+
+            guard errorMessage == nil else {
+                return
+            }
+
+            player.play()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
     }
 
     /// Toggles playback between playing and paused states.
@@ -170,20 +207,16 @@ final class PlayerViewModel: Identifiable {
         }
 
         statusObservation = player.currentItem?.observe(\.status, options: [.initial, .new]) { [weak self] item, _ in
-            Task { @MainActor in
+            Task { @MainActor [weak self] in
                 guard let self else {
                     return
                 }
 
                 switch item.status {
                 case .readyToPlay:
-                    await self.configureVideoCompositionIfNeeded(for: item)
-                    await self.debugVideoMetadata(item)
-                    await self.updateDuration(using: item)
-                    self.updateAspectRatio(using: item.presentationSize)
-                    await self.restoreResumePositionIfNeeded()
+                    break
                 case .failed:
-                    self.errorMessage = item.error?.localizedDescription ?? "This video could not be played."
+                    errorMessage = item.error?.localizedDescription ?? "This video could not be played."
                 default:
                     break
                 }
@@ -211,6 +244,53 @@ final class PlayerViewModel: Identifiable {
                 self.currentTime = time.seconds.isFinite ? time.seconds : 0
                 await self.saveProgress()
             }
+        }
+    }
+
+    /// Waits for the current player item to become ready before running expensive setup.
+    ///
+    /// The view presents a loading state while this awaits readiness. Doing the work here
+    /// keeps the expensive transform/composition path inside a visible preparation phase
+    /// instead of triggering it after the player UI has already appeared.
+    private func waitUntilItemReady(_ item: AVPlayerItem) async throws -> AVPlayerItem {
+        switch item.status {
+        case .readyToPlay:
+            return item
+        case .failed:
+            throw item.error ?? NSError(
+                domain: "NookPlay.PlayerViewModel",
+                code: 2,
+                userInfo: [NSLocalizedDescriptionKey: "This video could not be played."]
+            )
+        case .unknown:
+            return try await withCheckedThrowingContinuation { continuation in
+                var readinessObservation: NSKeyValueObservation?
+                readinessObservation = item.observe(\.status, options: [.new]) { item, _ in
+                    switch item.status {
+                    case .readyToPlay:
+                        readinessObservation?.invalidate()
+                        readinessObservation = nil
+                        continuation.resume(returning: item)
+                    case .failed:
+                        let error = item.error ?? NSError(
+                            domain: "NookPlay.PlayerViewModel",
+                            code: 3,
+                            userInfo: [NSLocalizedDescriptionKey: "This video could not be played."]
+                        )
+                        readinessObservation?.invalidate()
+                        readinessObservation = nil
+                        continuation.resume(throwing: error)
+                    default:
+                        break
+                    }
+                }
+            }
+        @unknown default:
+            throw NSError(
+                domain: "NookPlay.PlayerViewModel",
+                code: 4,
+                userInfo: [NSLocalizedDescriptionKey: "The selected video entered an unsupported playback state."]
+            )
         }
     }
 
@@ -273,6 +353,16 @@ final class PlayerViewModel: Identifiable {
         }
 
         videoAspectRatio = presentationSize.width / presentationSize.height
+    }
+
+    /// Returns the already-prepared item if one exists, otherwise creates and prepares one.
+    private func makePlayerItemIfNeeded() async throws -> AVPlayerItem {
+        if let preparedPlayerItem {
+            self.preparedPlayerItem = nil
+            return preparedPlayerItem
+        }
+
+        return await Self.makePreparedPlayerItem(for: mediaSource)
     }
 
     // MARK: Resume Persistence
@@ -338,6 +428,7 @@ final class PlayerViewModel: Identifiable {
     }
 
     private func debugVideoMetadata(_ item: AVPlayerItem) async {
+        #if DEBUG
         let asset = item.asset
 
         do {
@@ -368,22 +459,45 @@ final class PlayerViewModel: Identifiable {
             print("=== VIDEO DEBUG ===")
             print("Failed to load video metadata:", error)
         }
+        #endif
     }
 
-    private func configureVideoCompositionIfNeeded(for item: AVPlayerItem) async {
+    /// Ensures the player item has a transform-correcting video composition when needed.
+    ///
+    /// This method is deliberately conservative:
+    /// - It exits immediately if a composition is already attached.
+    /// - It attempts to build a composition only after AVFoundation reports the item is ready.
+    /// - It preserves playback even if composition creation fails.
+    ///
+    /// That behavior matters because the composition is a presentation fix, not a playback
+    /// prerequisite. If the transform-correction path fails, the app still prefers to play
+    /// the media rather than turning a recoverable presentation issue into a hard failure.
+    private static func configureVideoCompositionIfNeeded(for item: AVPlayerItem) async {
         guard item.videoComposition == nil else {
             return
         }
 
         do {
             item.videoComposition = try await makeVideoComposition(for: item.asset)
+            item.seekingWaitsForVideoCompositionRendering = item.videoComposition != nil
         } catch {
             print("=== VIDEO DEBUG ===")
             print("Failed to configure video composition:", error)
         }
     }
 
-    private func makeVideoComposition(for asset: AVAsset) async throws -> AVVideoComposition? {
+    /// Builds a configuration-based `AVVideoComposition` that applies the source track's
+    /// preferred transform during playback.
+    ///
+    /// AVFoundation commonly stores orientation as metadata on the video track. When that
+    /// metadata is non-identity, the safest way to normalize presentation is to create a
+    /// composition that respects the asset's own track properties and transforms.
+    ///
+    /// The function returns `nil` for the no-op cases so the caller can keep the direct
+    /// asset playback path:
+    /// - the asset has no video track
+    /// - the track transform is already `.identity`
+    private static func makeVideoComposition(for asset: AVAsset) async throws -> AVVideoComposition? {
         let tracks = try await asset.loadTracks(withMediaType: .video)
 
         guard let sourceTrack = tracks.first else {
@@ -392,63 +506,39 @@ final class PlayerViewModel: Identifiable {
 
         let preferredTransform = try await sourceTrack.load(.preferredTransform)
         let naturalSize = try await sourceTrack.load(.naturalSize)
-        let duration = try await asset.load(.duration)
-
-        // If already upright, keep the simple path.
+        // If the encoded track does not require an extra transform, avoid composition
+        // overhead and keep the simpler direct-asset playback path.
         if preferredTransform == .identity {
             return nil
         }
-
-        let composition = AVMutableComposition()
-        guard let compTrack = composition.addMutableTrack(
-            withMediaType: .video,
-            preferredTrackID: kCMPersistentTrackID_Invalid
-        ) else {
-            return nil
-        }
-
-        try compTrack.insertTimeRange(
-            CMTimeRange(start: .zero, duration: duration),
-            of: sourceTrack,
-            at: .zero
-        )
-
-        if let audioTrack = try await asset.loadTracks(withMediaType: .audio).first,
-           let compAudio = composition.addMutableTrack(
-               withMediaType: .audio,
-               preferredTrackID: kCMPersistentTrackID_Invalid
-           )
-        {
-            try? compAudio.insertTimeRange(
-                CMTimeRange(start: .zero, duration: duration),
-                of: audioTrack,
-                at: .zero
-            )
-        }
-
-        var layerConfiguration = AVVideoCompositionLayerInstruction.Configuration(trackID: compTrack.trackID)
-        layerConfiguration.setTransform(preferredTransform, at: .zero)
-        let layerInstruction = AVVideoCompositionLayerInstruction(configuration: layerConfiguration)
-
-        let instructionConfiguration = AVVideoCompositionInstruction.Configuration(
-            backgroundColor: nil,
-            enablePostProcessing: false,
-            layerInstructions: [layerInstruction],
-            requiredSourceSampleDataTrackIDs: [],
-            timeRange: CMTimeRange(start: .zero, duration: duration)
-        )
-        let instruction = AVVideoCompositionInstruction(configuration: instructionConfiguration)
-
-        var configuration = AVVideoComposition.Configuration()
-        configuration.instructions = [instruction]
-        configuration.frameDuration = CMTime(value: 1, timescale: 30)
-
+        let videoComposition = try await AVVideoComposition.videoComposition(withPropertiesOf: asset)
         let transformedSize = naturalSize.applying(preferredTransform)
-        configuration.renderSize = CGSize(
+        let expectedRenderSize = CGSize(
             width: abs(transformedSize.width),
             height: abs(transformedSize.height)
         )
 
-        return AVVideoComposition(configuration: configuration)
+        // Keep the system-generated instruction graph, but normalize render size to the
+        // transformed bounds we expect for rotated video.
+        if videoComposition.renderSize != expectedRenderSize {
+            var configuration = try await AVVideoComposition.Configuration(for: asset, prototypeInstruction: nil)
+            configuration.instructions = videoComposition.instructions
+            configuration.frameDuration = videoComposition.frameDuration
+            configuration.renderSize = expectedRenderSize
+            configuration.renderScale = videoComposition.renderScale
+            configuration.sourceTrackIDForFrameTiming = videoComposition.sourceTrackIDForFrameTiming
+            configuration.sourceSampleDataTrackIDs = videoComposition.sourceSampleDataTrackIDs
+            configuration.spatialVideoConfigurations = videoComposition.spatialVideoConfigurations
+            return AVVideoComposition(configuration: configuration)
+        }
+
+        return videoComposition
+    }
+
+    /// Creates a player item and attaches any required video composition before playback UI appears.
+    static func makePreparedPlayerItem(for mediaSource: AnyPlayableMediaSource) async -> AVPlayerItem {
+        let item = AVPlayerItem(asset: AVURLAsset(url: mediaSource.streamURL))
+        await configureVideoCompositionIfNeeded(for: item)
+        return item
     }
 }
