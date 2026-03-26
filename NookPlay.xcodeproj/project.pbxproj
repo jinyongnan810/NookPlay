@@ -24,6 +24,7 @@
 		3FCDD57D2F6C0F0100B3E94C /* NookPlay.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = NookPlay.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		3FCDD5812F6C0F0200B3E94C /* RealityKitContent */ = {isa = PBXFileReference; lastKnownFileType = wrapper; path = RealityKitContent; sourceTree = "<group>"; };
 		3FCDD58F2F6C0F0300B3E94C /* NookPlayTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = NookPlayTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		3FD1E62F2F75F70100051DDE /* AGENTS.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = AGENTS.md; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -78,6 +79,7 @@
 				3FCDD5802F6C0F0200B3E94C /* Packages */,
 				3FCDD5922F6C0F0300B3E94C /* NookPlayTests */,
 				3FCDD57E2F6C0F0100B3E94C /* Products */,
+				3FD1E62F2F75F70100051DDE /* AGENTS.md */,
 			);
 			sourceTree = "<group>";
 		};
