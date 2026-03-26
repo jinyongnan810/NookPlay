@@ -6,6 +6,7 @@
 //
 
 import AVFoundation
+import AVKit
 import CoreGraphics
 import Foundation
 import Observation
@@ -538,7 +539,37 @@ final class PlayerViewModel: Identifiable {
     /// Creates a player item and attaches any required video composition before playback UI appears.
     static func makePreparedPlayerItem(for mediaSource: AnyPlayableMediaSource) async -> AVPlayerItem {
         let item = AVPlayerItem(asset: AVURLAsset(url: mediaSource.streamURL))
+        item.externalMetadata = makeDisplayMetadata(for: mediaSource)
         await configureVideoCompositionIfNeeded(for: item)
         return item
+    }
+
+    /// Publishes display metadata that `AVPlayerViewController` can show in its transport bar.
+    private static func makeDisplayMetadata(for mediaSource: AnyPlayableMediaSource) -> [AVMetadataItem] {
+        var metadata: [AVMetadataItem] = [makeMetadataItem(
+            identifier: .commonIdentifierTitle,
+            value: mediaSource.title
+        )]
+
+        if let subtitle = mediaSource.subtitle, !subtitle.isEmpty {
+            metadata.append(makeMetadataItem(
+                identifier: .iTunesMetadataTrackSubTitle,
+                value: subtitle
+            ))
+        }
+
+        return metadata
+    }
+
+    /// Creates a mutable metadata item for system playback UI consumption.
+    private static func makeMetadataItem(
+        identifier: AVMetadataIdentifier,
+        value: String
+    ) -> AVMetadataItem {
+        let item = AVMutableMetadataItem()
+        item.identifier = identifier
+        item.value = value as NSString
+        item.extendedLanguageTag = "und"
+        return item.copy() as? AVMetadataItem ?? item
     }
 }
