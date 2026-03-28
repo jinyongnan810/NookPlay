@@ -41,13 +41,15 @@ struct ContentView: View {
             }
             .tag(AppTab.local)
 
-            NavigationStack {
-                WebEntryView()
-            }
-            .tabItem {
-                Label("Web", systemImage: "network")
-            }
-            .tag(AppTab.web)
+            #if DEBUG
+                NavigationStack {
+                    WebEntryView()
+                }
+                .tabItem {
+                    Label("Web", systemImage: "network")
+                }
+                .tag(AppTab.web)
+            #endif
 
             NavigationStack {
                 MediaServerView()
