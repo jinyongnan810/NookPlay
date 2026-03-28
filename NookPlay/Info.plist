@@ -6,8 +6,6 @@
 	<array>
 		<string>_nookplayauth._tcp</string>
 	</array>
-	<key>NSLocalNetworkUsageDescription</key>
-	<string>NookPlay uses your local network to discover DLNA and UPnP media servers for playback.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationPreferredDefaultSceneSessionRole</key>
