@@ -19,14 +19,28 @@ final class MediaServerViewModel {
     private(set) var isScanning = false
     /// A user-facing discovery error, if one occurs.
     private(set) var errorMessage: String?
-    /// Diagnostics from the most recent scan, whether it succeeded or not.
-    private(set) var diagnostics: DLNAScanDiagnostics?
 
     // MARK: Private Dependencies
 
     /// The SSDP discovery service for DLNA media servers.
     @ObservationIgnored
     private let discoveryService = DLNAServiceDiscovery()
+
+    // MARK: Initialization
+
+    /// Creates the discovery view model with optional preloaded state.
+    ///
+    /// The default values preserve production behavior. The seeded values exist so previews
+    /// can render realistic discovery results without triggering live local-network work.
+    init(
+        discoveredServers: [DLNAMediaServer] = [],
+        isScanning: Bool = false,
+        errorMessage: String? = nil
+    ) {
+        self.discoveredServers = discoveredServers
+        self.isScanning = isScanning
+        self.errorMessage = errorMessage
+    }
 
     // MARK: Public Actions
 
@@ -39,13 +53,11 @@ final class MediaServerViewModel {
         isScanning = true
         errorMessage = nil
         discoveredServers = []
-        diagnostics = nil
 
         Task {
             do {
                 let result = try await discoveryService.discover()
                 discoveredServers = result.servers
-                diagnostics = result.diagnostics
                 isScanning = false
             } catch {
                 errorMessage = error.localizedDescription

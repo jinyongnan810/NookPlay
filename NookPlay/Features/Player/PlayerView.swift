@@ -52,10 +52,20 @@ struct PlayerView: View {
                 .ignoresSafeArea()
 
             if let errorMessage = viewModel.errorMessage {
-                ContentUnavailableView {
-                    Label("Playback Error", systemImage: "exclamationmark.triangle.fill")
-                } description: {
-                    Text(errorMessage)
+                VStack(spacing: 24) {
+                    ContentUnavailableView {
+                        Label("Playback Error", systemImage: "exclamationmark.triangle.fill")
+                    } description: {
+                        Text(errorMessage)
+                    }
+
+                    // When playback preparation fails, the system player never presents its own
+                    // fullscreen chrome. Provide an explicit exit action here so the user is not
+                    // trapped on the error screen with no route back to the main app UI.
+                    Button("Back to Library") {
+                        closePlayer()
+                    }
+                    .buttonStyle(.borderedProminent)
                 }
                 .foregroundStyle(.white)
             } else {
@@ -65,12 +75,6 @@ struct PlayerView: View {
                     onWillEndFullScreenPresentation: closePlayer
                 )
                 .ignoresSafeArea()
-
-                if viewModel.isPreparing {
-                    ProgressView("Preparing Video…")
-                        .tint(.white)
-                        .foregroundStyle(.white)
-                }
             }
         }
         .immersiveEnvironmentPicker {

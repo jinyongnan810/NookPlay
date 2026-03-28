@@ -12,7 +12,26 @@ struct MediaServerView: View {
     // MARK: State
 
     /// The discovery state and results shown on this screen.
-    @State private var viewModel = MediaServerViewModel()
+    @State private var viewModel: MediaServerViewModel
+
+    // MARK: Initialization
+
+    /// Creates the live discovery screen with its own empty view model.
+    ///
+    /// This keeps the production call site simple while ensuring the initialization happens
+    /// on the main actor, which is required by the observable view model.
+    /// Allows previews to inject representative discovery state while the live screen still
+    /// defaults to an empty model that performs discovery only when the user requests it.
+    @MainActor
+    init() {
+        _viewModel = State(initialValue: MediaServerViewModel())
+    }
+
+    /// Accepts a preconfigured view model for previews and other controlled render contexts.
+    @MainActor
+    init(viewModel: MediaServerViewModel) {
+        _viewModel = State(initialValue: viewModel)
+    }
 
     // MARK: Body
 
@@ -24,10 +43,6 @@ struct MediaServerView: View {
                 if let errorMessage = viewModel.errorMessage {
                     Text(errorMessage)
                         .foregroundStyle(.red)
-                }
-
-                if let diagnostics = viewModel.diagnostics {
-                    diagnosticsSection(diagnostics)
                 }
 
                 if viewModel.discoveredServers.isEmpty {
@@ -87,67 +102,13 @@ struct MediaServerView: View {
                 .fontWeight(.medium)
 
             ForEach(viewModel.discoveredServers) { server in
-                MediaServerRow(server: server)
-            }
-        }
-    }
-
-    /// Shows the internal scan counters needed to debug empty discovery results.
-    ///
-    /// These values separate transport problems from filtering problems. If raw responses remain at
-    /// zero, the socket did not receive SSDP replies. If raw responses are present but accepted
-    /// servers stay at zero, the issue is in the parsing or filtering stages instead.
-    private func diagnosticsSection(_ diagnostics: DLNAScanDiagnostics) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Scan Diagnostics")
-                .font(.title2)
-                .fontWeight(.medium)
-
-            VStack(alignment: .leading, spacing: 8) {
-                diagnosticRow(
-                    title: "Local Network Access",
-                    value: diagnostics.localNetworkAuthorizationSucceeded ? "Authorized" : "Unavailable"
-                )
-                // `rawDatagramCount` includes every UDP packet we received during discovery, even if it
-                // later failed SSDP parsing. Showing that broader transport count helps distinguish
-                // network reachability problems from parser or filtering issues.
-                diagnosticRow(title: "Raw SSDP Responses", value: "\(diagnostics.rawDatagramCount)")
-                diagnosticRow(title: "Candidate Responses", value: "\(diagnostics.candidateResponseCount)")
-                diagnosticRow(title: "Parsed Descriptions", value: "\(diagnostics.parsedDescriptionCount)")
-                diagnosticRow(title: "Accepted Servers", value: "\(diagnostics.confirmedMediaServerCount)")
-            }
-
-            if !diagnostics.responseHeaderSamples.isEmpty {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Response Samples")
-                        .font(.headline)
-
-                    ForEach(Array(diagnostics.responseHeaderSamples.enumerated()), id: \.offset) { _, sample in
-                        Text(sample)
-                            .font(.footnote.monospaced())
-                            .foregroundStyle(.secondary)
-                            .textSelection(.enabled)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                    }
+                NavigationLink {
+                    MediaServerBrowserView(server: server)
+                } label: {
+                    MediaServerRow(server: server)
                 }
             }
         }
-        .padding(16)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
-    }
-
-    /// Renders a single diagnostic label/value pair in a compact, scannable row.
-    private func diagnosticRow(title: String, value: String) -> some View {
-        HStack(alignment: .firstTextBaseline) {
-            Text(title)
-                .foregroundStyle(.secondary)
-            Spacer(minLength: 16)
-            Text(value)
-                .fontWeight(.medium)
-                .textSelection(.enabled)
-        }
-        .font(.subheadline)
     }
 
     /// The empty-state description matching the current scan state.
@@ -168,25 +129,26 @@ private struct MediaServerRow: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(primaryTitle)
-                .font(.headline)
+            HStack(alignment: .top, spacing: 12) {
+                Image(systemName: server.contentDirectory != nil ? "externaldrive.connected.to.line.below" : "network")
+                    .font(.title3)
+                    .foregroundStyle(.tint)
+                    .frame(width: 24)
 
-            if let subtitle {
-                Text(subtitle)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(primaryTitle)
+                        .font(.headline)
+
+                    if let subtitle {
+                        Text(subtitle)
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+                }
             }
-
-            Text(server.location.absoluteString)
-                .font(.footnote)
-                .foregroundStyle(.tertiary)
-                .textSelection(.enabled)
-                .lineLimit(1)
-                .truncationMode(.middle)
         }
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
     }
 
     /// The most useful display title available for the server.
@@ -216,6 +178,32 @@ private struct MediaServerRow: View {
 
 #Preview {
     NavigationStack {
-        MediaServerView()
+        MediaServerView(
+            viewModel: MediaServerViewModel(
+                discoveredServers: [
+                    DLNAMediaServer(
+                        id: "preview-plex-server",
+                        usn: "uuid:preview-plex-server::upnp:rootdevice",
+                        location: URL(string: "http://192.168.1.50:32469/description.xml")!,
+                        searchTarget: "urn:schemas-upnp-org:device:MediaServer:1",
+                        serverHeader: "Plex Media Server/1.41.0.8994",
+                        friendlyName: "Living Room Plex",
+                        manufacturer: "Plex, Inc.",
+                        modelName: "Plex Media Server",
+                        contentDirectory: DLNAContentDirectoryService(
+                            serviceType: "urn:schemas-upnp-org:service:ContentDirectory:1",
+                            controlURL: URL(string: "http://192.168.1.50:32469/upnp/control/content_directory")!,
+                            eventSubURL: URL(string: "http://192.168.1.50:32469/upnp/event/content_directory"),
+                            scpdURL: URL(string: "http://192.168.1.50:32469/xml/content_directory.xml")
+                        ),
+                        isConfirmedMediaServer: true,
+                        responseHeaders: [
+                            "location": "http://192.168.1.50:32469/description.xml",
+                            "server": "Plex Media Server/1.41.0.8994",
+                        ]
+                    ),
+                ]
+            )
+        )
     }
 }
