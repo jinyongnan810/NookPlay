@@ -31,7 +31,7 @@ def Xform "Root"
 
             def RealityKitComponent "CustomDockingRegion" (
                 customData = {
-                    asset previewVideo = @@
+                    asset previewVideo = @../../../../../../../../Desktop/IMG_1954.mp4@
                 }
             )
             {
@@ -69,11 +69,15 @@ def Xform "Root"
             )
             {
                 float inputs:clearcoat = 0
+                color3f inputs:emissiveColor.connect = </Root/Ground/Material/Add.outputs:out>
+                float inputs:ior = 0
                 float inputs:metallic = 0.5
                 float3 inputs:normal = (0, 0, 1)
-                float inputs:opacity = 0.3
+                float inputs:opacity = 0
+                float inputs:opacity.connect = </Root/Ground/Material/Max.outputs:out>
+                float inputs:opacityThreshold = 0.001
                 float inputs:roughness = 1
-                int ui:nodegraph:node:stackingOrder = 457
+                int ui:nodegraph:node:stackingOrder = 495
             }
 
             def Shader "UsdPreviewSurface" (
@@ -122,12 +126,16 @@ def Xform "Root"
 
             over "Swizzle"
             {
-                int ui:nodegraph:node:stackingOrder = 457
+                color4f inputs:in.connect = </Root/Ground/Material/Reflection_Diffuse.outputs:out>
+                float2 ui:nodegraph:node:pos = (617.69104, 260.36713)
+                int ui:nodegraph:node:stackingOrder = 477
             }
 
             over "Add"
             {
-                int ui:nodegraph:node:stackingOrder = 457
+                color3f inputs:in2.connect = </Root/Ground/Material/Mix_1.outputs:out>
+                float2 ui:nodegraph:node:pos = (1113.6918, 372.3384)
+                int ui:nodegraph:node:stackingOrder = 475
             }
 
             over "Read_EmissionUV"
@@ -142,7 +150,28 @@ def Xform "Root"
 
             over "Mix_1"
             {
+                float inputs:mix.connect = </Root/Ground/Material/Separate4.outputs:outa>
                 int ui:nodegraph:node:stackingOrder = 457
+            }
+
+            def Shader "Separate4_1"
+            {
+                uniform token info:id = "ND_separate4_color4"
+                color4f inputs:in.connect = </Root/Ground/Material/Reflection_Diffuse.outputs:out>
+                float outputs:outa
+                float outputs:outb
+                float2 ui:nodegraph:node:pos = (667.10425, 147.28694)
+                int ui:nodegraph:node:stackingOrder = 465
+            }
+
+            def Shader "Max"
+            {
+                uniform token info:id = "ND_max_float"
+                float inputs:in1.connect = </Root/Ground/Material/Separate4_1.outputs:outa>
+                float inputs:in2.connect = </Root/Ground/Material/Separate4.outputs:outa>
+                float outputs:out
+                float2 ui:nodegraph:node:pos = (888.047, 142.29749)
+                int ui:nodegraph:node:stackingOrder = 473
             }
         }
 
@@ -195,9 +224,10 @@ def Xform "Root"
                 color3f inputs:emissiveColor.connect = </Root/Ground/Maple_Plywood/Add.outputs:out>
                 float inputs:ior
                 float inputs:occlusion
-                float inputs:opacityThreshold
+                float inputs:opacity.connect = </Root/Ground/Maple_Plywood/Max.outputs:out>
+                float inputs:opacityThreshold = 0.01
                 float2 ui:nodegraph:node:pos = (55.119686, 2015.6317)
-                int ui:nodegraph:node:stackingOrder = 5048
+                int ui:nodegraph:node:stackingOrder = 5114
                 string[] ui:nodegraph:realitykit:node:attributesShowingChildren = ["Advanced"]
             }
 
@@ -247,8 +277,8 @@ def Xform "Root"
             over "Mix"
             {
                 float2 ui:nodegraph:node:pos = (-818.964, 1753.5231)
-                int ui:nodegraph:node:stackingOrder = 5038
-                string[] ui:nodegraph:realitykit:node:attributesShowingChildren = ["outputs:out"]
+                int ui:nodegraph:node:stackingOrder = 5097
+                string[] ui:nodegraph:realitykit:node:attributesShowingChildren = ["outputs:out", "inputs:mix"]
             }
 
             over "Swizzle"
@@ -381,6 +411,35 @@ def Xform "Root"
                 float2 inputs:emitterUV.connect = </Root/Ground/Maple_Plywood/Read_EmissionUV.outputs:out>
                 float2 ui:nodegraph:node:pos = (-1126.4844, 2708.3281)
                 int ui:nodegraph:node:stackingOrder = 5096
+            }
+
+            def Shader "Separate3"
+            {
+                uniform token info:id = "ND_separate3_color3"
+                float2 ui:nodegraph:node:pos = (-115.321686, 2439.6418)
+                int ui:nodegraph:node:stackingOrder = 5100
+            }
+
+            def Shader "Separate4_1"
+            {
+                uniform token info:id = "ND_separate4_color4"
+                color4f inputs:in.connect = </Root/Ground/Maple_Plywood/Reflection_Diffuse.outputs:out>
+                float outputs:outa
+                float outputs:outb
+                float outputs:outg
+                float outputs:outr
+                float2 ui:nodegraph:node:pos = (-753.5935, 2620.3582)
+                int ui:nodegraph:node:stackingOrder = 5108
+            }
+
+            def Shader "Max"
+            {
+                uniform token info:id = "ND_max_float"
+                float inputs:in1.connect = </Root/Ground/Maple_Plywood/Separate4_1.outputs:outa>
+                float inputs:in2.connect = </Root/Ground/Maple_Plywood/Separate4.outputs:outa>
+                float outputs:out
+                float2 ui:nodegraph:node:pos = (-559.0425, 2417.7366)
+                int ui:nodegraph:node:stackingOrder = 5111
             }
         }
     }

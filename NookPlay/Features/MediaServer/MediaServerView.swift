@@ -26,6 +26,10 @@ struct MediaServerView: View {
                         .foregroundStyle(.red)
                 }
 
+                if let diagnostics = viewModel.diagnostics {
+                    diagnosticsSection(diagnostics)
+                }
+
                 if viewModel.discoveredServers.isEmpty {
                     emptyStateSection
                 } else {
@@ -88,6 +92,64 @@ struct MediaServerView: View {
         }
     }
 
+    /// Shows the internal scan counters needed to debug empty discovery results.
+    ///
+    /// These values separate transport problems from filtering problems. If raw responses remain at
+    /// zero, the socket did not receive SSDP replies. If raw responses are present but accepted
+    /// servers stay at zero, the issue is in the parsing or filtering stages instead.
+    private func diagnosticsSection(_ diagnostics: DLNAScanDiagnostics) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Scan Diagnostics")
+                .font(.title2)
+                .fontWeight(.medium)
+
+            VStack(alignment: .leading, spacing: 8) {
+                diagnosticRow(
+                    title: "Local Network Access",
+                    value: diagnostics.localNetworkAuthorizationSucceeded ? "Authorized" : "Unavailable"
+                )
+                // `rawDatagramCount` includes every UDP packet we received during discovery, even if it
+                // later failed SSDP parsing. Showing that broader transport count helps distinguish
+                // network reachability problems from parser or filtering issues.
+                diagnosticRow(title: "Raw SSDP Responses", value: "\(diagnostics.rawDatagramCount)")
+                diagnosticRow(title: "Candidate Responses", value: "\(diagnostics.candidateResponseCount)")
+                diagnosticRow(title: "Parsed Descriptions", value: "\(diagnostics.parsedDescriptionCount)")
+                diagnosticRow(title: "Accepted Servers", value: "\(diagnostics.confirmedMediaServerCount)")
+            }
+
+            if !diagnostics.responseHeaderSamples.isEmpty {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Response Samples")
+                        .font(.headline)
+
+                    ForEach(Array(diagnostics.responseHeaderSamples.enumerated()), id: \.offset) { _, sample in
+                        Text(sample)
+                            .font(.footnote.monospaced())
+                            .foregroundStyle(.secondary)
+                            .textSelection(.enabled)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                }
+            }
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+    }
+
+    /// Renders a single diagnostic label/value pair in a compact, scannable row.
+    private func diagnosticRow(title: String, value: String) -> some View {
+        HStack(alignment: .firstTextBaseline) {
+            Text(title)
+                .foregroundStyle(.secondary)
+            Spacer(minLength: 16)
+            Text(value)
+                .fontWeight(.medium)
+                .textSelection(.enabled)
+        }
+        .font(.subheadline)
+    }
+
     /// The empty-state description matching the current scan state.
     private var emptyStateDescription: String {
         if viewModel.isScanning {
@@ -129,7 +191,9 @@ private struct MediaServerRow: View {
 
     /// The most useful display title available for the server.
     private var primaryTitle: String {
-        server.friendlyName ?? server.modelName ?? server.usn
+        // Reuse the model's shared display-name fallback chain so every place that renders a server
+        // title behaves consistently, including provisional devices with sparse metadata.
+        server.displayName
     }
 
     /// Optional supporting metadata shown below the main title.

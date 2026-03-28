@@ -430,36 +430,36 @@ final class PlayerViewModel: Identifiable {
 
     private func debugVideoMetadata(_ item: AVPlayerItem) async {
         #if DEBUG
-        let asset = item.asset
+            let asset = item.asset
 
-        do {
-            let tracks = try await asset.loadTracks(withMediaType: .video)
-            guard let track = tracks.first else {
+            do {
+                let tracks = try await asset.loadTracks(withMediaType: .video)
+                guard let track = tracks.first else {
+                    print("=== VIDEO DEBUG ===")
+                    print("No video track")
+                    return
+                }
+
+                let naturalSize = try await track.load(.naturalSize)
+                let preferredTransform = try await track.load(.preferredTransform)
+                let presentationSize = item.presentationSize
+
+                let transformed = naturalSize.applying(preferredTransform)
+
                 print("=== VIDEO DEBUG ===")
-                print("No video track")
-                return
+                print("url:", (asset as? AVURLAsset)?.url.absoluteString ?? "n/a")
+                print("naturalSize:", naturalSize)
+                print("preferredTransform:", preferredTransform)
+                print("presentationSize:", presentationSize)
+                print("transformedSize(abs):", CGSize(
+                    width: abs(transformed.width),
+                    height: abs(transformed.height)
+                ))
+                print("videoAspectRatio:", videoAspectRatio)
+            } catch {
+                print("=== VIDEO DEBUG ===")
+                print("Failed to load video metadata:", error)
             }
-
-            let naturalSize = try await track.load(.naturalSize)
-            let preferredTransform = try await track.load(.preferredTransform)
-            let presentationSize = item.presentationSize
-
-            let transformed = naturalSize.applying(preferredTransform)
-
-            print("=== VIDEO DEBUG ===")
-            print("url:", (asset as? AVURLAsset)?.url.absoluteString ?? "n/a")
-            print("naturalSize:", naturalSize)
-            print("preferredTransform:", preferredTransform)
-            print("presentationSize:", presentationSize)
-            print("transformedSize(abs):", CGSize(
-                width: abs(transformed.width),
-                height: abs(transformed.height)
-            ))
-            print("videoAspectRatio:", videoAspectRatio)
-        } catch {
-            print("=== VIDEO DEBUG ===")
-            print("Failed to load video metadata:", error)
-        }
         #endif
     }
 

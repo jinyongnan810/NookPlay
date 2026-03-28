@@ -19,6 +19,8 @@ final class MediaServerViewModel {
     private(set) var isScanning = false
     /// A user-facing discovery error, if one occurs.
     private(set) var errorMessage: String?
+    /// Diagnostics from the most recent scan, whether it succeeded or not.
+    private(set) var diagnostics: DLNAScanDiagnostics?
 
     // MARK: Private Dependencies
 
@@ -37,10 +39,13 @@ final class MediaServerViewModel {
         isScanning = true
         errorMessage = nil
         discoveredServers = []
+        diagnostics = nil
 
         Task {
             do {
-                discoveredServers = try await discoveryService.discover()
+                let result = try await discoveryService.discover()
+                discoveredServers = result.servers
+                diagnostics = result.diagnostics
                 isScanning = false
             } catch {
                 errorMessage = error.localizedDescription
