@@ -31,7 +31,7 @@ def Xform "Root"
 
             def RealityKitComponent "CustomDockingRegion" (
                 customData = {
-                    asset previewVideo = @../../../../../../../../Desktop/IMG_1954.mp4@
+                    asset previewVideo = @../../../../../../../../../../Volumes/Extreme SSD/music/The Cranberries/The Cranberries Stars E11.mp4@
                 }
             )
             {
@@ -223,11 +223,12 @@ def Xform "Root"
                 float inputs:clearcoatRoughness
                 color3f inputs:emissiveColor.connect = </Root/Ground/Maple_Plywood/Add.outputs:out>
                 float inputs:ior
+                delete float inputs:metallic.connect = </Root/Ground/Maple_Plywood/Metallic.outputs:out>
                 float inputs:occlusion
-                float inputs:opacity.connect = </Root/Ground/Maple_Plywood/Max.outputs:out>
-                float inputs:opacityThreshold = 0.01
+                float inputs:opacity.connect = </Root/Ground/Maple_Plywood/MTLFma.outputs:out>
+                float inputs:opacityThreshold = 0
                 float2 ui:nodegraph:node:pos = (55.119686, 2015.6317)
-                int ui:nodegraph:node:stackingOrder = 5114
+                int ui:nodegraph:node:stackingOrder = 5142
                 string[] ui:nodegraph:realitykit:node:attributesShowingChildren = ["Advanced"]
             }
 
@@ -349,7 +350,7 @@ def Xform "Root"
             )
             {
                 uniform token info:id = "ND_add_color3"
-                color3f inputs:in1.connect = </Root/Ground/Maple_Plywood/Swizzle_2.outputs:out>
+                color3f inputs:in1.connect = </Root/Ground/Maple_Plywood/Multiply.outputs:out>
                 color3f inputs:in2.connect = </Root/Ground/Maple_Plywood/Mix_1.outputs:out>
                 float2 ui:nodegraph:node:pos = (-362.6515, 2369.299)
                 int ui:nodegraph:node:stackingOrder = 5094
@@ -363,6 +364,7 @@ def Xform "Root"
                 color4f inputs:in.connect = </Root/Ground/Maple_Plywood/Reflection_Diffuse.outputs:out>
                 float2 ui:nodegraph:node:pos = (-804.6211, 2771.7031)
                 int ui:nodegraph:node:stackingOrder = 5092
+                string[] ui:nodegraph:realitykit:node:attributesShowingChildren = ["outputs:out"]
             }
 
             def Shader "Read_EmissionUV" (
@@ -416,6 +418,7 @@ def Xform "Root"
             def Shader "Separate3"
             {
                 uniform token info:id = "ND_separate3_color3"
+                color3f inputs:in
                 float2 ui:nodegraph:node:pos = (-115.321686, 2439.6418)
                 int ui:nodegraph:node:stackingOrder = 5100
             }
@@ -432,14 +435,34 @@ def Xform "Root"
                 int ui:nodegraph:node:stackingOrder = 5108
             }
 
-            def Shader "Max"
+            def Shader "MTLFma"
             {
-                uniform token info:id = "ND_max_float"
-                float inputs:in1.connect = </Root/Ground/Maple_Plywood/Separate4_1.outputs:outa>
-                float inputs:in2.connect = </Root/Ground/Maple_Plywood/Separate4.outputs:outa>
+                uniform token info:id = "ND_MTL_fma_float"
+                float inputs:a.connect = </Root/Ground/Maple_Plywood/Separate4_1.outputs:outa>
+                float inputs:b = 0.5
+                float inputs:c.connect = </Root/Ground/Maple_Plywood/Separate4.outputs:outa>
                 float outputs:out
-                float2 ui:nodegraph:node:pos = (-559.0425, 2417.7366)
-                int ui:nodegraph:node:stackingOrder = 5111
+                float2 ui:nodegraph:node:pos = (-601.8615, 2358.8762)
+                int ui:nodegraph:node:stackingOrder = 5135
+            }
+
+            def Shader "ConstantFloat"
+            {
+                uniform token info:id = "ND_constant_float"
+                float inputs:value = 2
+                float outputs:out
+                float2 ui:nodegraph:node:pos = (-551.20374, 2807.3394)
+                int ui:nodegraph:node:stackingOrder = 5133
+            }
+
+            def Shader "Multiply"
+            {
+                uniform token info:id = "ND_multiply_color3FA"
+                prepend color3f inputs:in1.connect = </Root/Ground/Maple_Plywood/Swizzle_2.outputs:out>
+                float inputs:in2.connect = </Root/Ground/Maple_Plywood/ConstantFloat.outputs:out>
+                color3f outputs:out
+                float2 ui:nodegraph:node:pos = (-504.4076, 2703.932)
+                int ui:nodegraph:node:stackingOrder = 5126
             }
         }
     }
